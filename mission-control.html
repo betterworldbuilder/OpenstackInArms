@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>OpenARMS Mission Control</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
     :root {
       color-scheme: dark;
       --bg: #05070d;
@@ -138,6 +140,345 @@
     @keyframes rollSubtitle {
       from { transform: translateX(100%); }
       to { transform: translateX(-100%); }
+    }
+
+    /* OSPC/FLEX dashboard skin */
+    :root {
+      --bg: #233a6b;
+      --ink: #ffffff;
+      --text: #ffffff;
+      --muted: #d4ddf5;
+      --panel: #0f1e3e88;
+      --line: #8ea2cc66;
+      --accent: #6f7db0;
+      --accent-ink: #eaf0ff;
+      --chip: #5d6d9555;
+      --cyan: #eaf0ff;
+      --green: #f8ebff;
+      --pink: #ca8dff;
+      --amber: #ffd772;
+      --danger: #ff77c5;
+      --shadow: none;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      color: var(--ink);
+      background: linear-gradient(120deg, #2a4e8d 0%, #374a86 45%, #5a4b72 100%);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    .bg-shape {
+      position: fixed;
+      border-radius: 999px;
+      filter: blur(35px);
+      opacity: 0.28;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .bg-shape-a {
+      width: 340px;
+      height: 340px;
+      background: #4f75b2;
+      top: -80px;
+      right: -80px;
+    }
+
+    .bg-shape-b {
+      width: 260px;
+      height: 260px;
+      background: #7b5d92;
+      bottom: -60px;
+      left: -70px;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      width: auto;
+      margin: 0 auto;
+      padding: 28px 16px 40px;
+    }
+
+    .hero {
+      display: block;
+      padding: 0;
+      border-bottom: 0;
+    }
+
+    .hero h1,
+    .neon-title {
+      margin: 4px 0 6px;
+      color: #fff;
+      font-size: clamp(1.9rem, 3.5vw, 3rem);
+      line-height: 1.05;
+      text-shadow: 0 0 16px rgba(202, 141, 255, 0.55), 0 0 26px rgba(142, 162, 204, 0.35);
+    }
+
+    .title-bar {
+      min-height: auto;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      color: var(--accent-ink);
+      background: transparent;
+      box-shadow: none;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .ticker {
+      width: min(820px, 100%);
+      margin-top: 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff14;
+      box-shadow: none;
+    }
+
+    .ticker span {
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 600;
+      text-shadow: none;
+    }
+
+    .subtitle,
+    .sub {
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    .status-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .metric,
+    .panel,
+    .stage,
+    .console {
+      margin-top: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      backdrop-filter: blur(8px);
+      padding: 14px;
+      box-shadow: none;
+      animation: rise 260ms ease;
+    }
+
+    .metric {
+      min-height: auto;
+    }
+
+    .metric span,
+    label,
+    .field label {
+      display: block;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      color: var(--muted);
+    }
+
+    .metric strong {
+      margin-top: 6px;
+      color: #fff;
+      font-size: 1.38rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    h2,
+    h3 {
+      margin: 0;
+    }
+
+    input,
+    textarea,
+    select {
+      border: 1px solid #9fb3ff88;
+      border-radius: 10px;
+      padding: 8px 9px;
+      font: inherit;
+      width: 100%;
+      background: #ffffff14;
+      color: var(--ink);
+      outline: none;
+    }
+
+    textarea,
+    pre,
+    code,
+    .commands,
+    th,
+    td {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    button,
+    .btn {
+      border: 1px solid #8ea2cc;
+      border-radius: 10px;
+      padding: 8px 10px;
+      min-height: auto;
+      font: inherit;
+      font-weight: 600;
+      background: #4b5f91;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: none;
+    }
+
+    button:hover {
+      background: #566ca3;
+      border-color: #a7b7dd;
+    }
+
+    .ghost {
+      background: #ffffff14;
+      color: #fff;
+    }
+
+    .danger {
+      background: #6a4b80;
+      border-color: #ca8dff88;
+    }
+
+    .scan-box {
+      margin-top: 16px;
+      padding-top: 0;
+      border-top: 3px solid #ca8dff88;
+    }
+
+    .stage-grid {
+      display: grid;
+      gap: 0;
+    }
+
+    .stage {
+      grid-template-columns: 54px 1fr auto;
+    }
+
+    .stage-index {
+      width: 42px;
+      height: 42px;
+      color: #f8ebff;
+      background: var(--chip);
+      border: 1px solid #a7b7dd88;
+      box-shadow: none;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stage p,
+    .commands,
+    .hint,
+    .meta {
+      color: var(--muted);
+    }
+
+    .commands {
+      background: #ffffff12;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 0.78rem;
+    }
+
+    .console {
+      overflow: hidden;
+    }
+
+    .console-head,
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding: 0;
+      border-bottom: 0;
+    }
+
+    pre {
+      min-height: 260px;
+      max-height: 440px;
+      color: #fff;
+      background: #ffffff12;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 0.8rem;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background: #ffffff12;
+      margin-top: 10px;
+      border-radius: 0;
+    }
+
+    th,
+    td {
+      font-size: 0.8rem;
+      padding: 8px;
+      border-bottom: 1px solid #b8c4ff33;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #ffffff1a;
+      z-index: 2;
+      color: #fff;
+    }
+
+    tr:hover td {
+      background: #ffffff10;
+    }
+
+    .pill {
+      font-size: 0.82rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: var(--chip);
+      color: #f8ebff;
+      border: 1px solid #a7b7dd88;
+    }
+
+    @keyframes rise {
+      from {
+        transform: translateY(8px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
     }
 
     .status-strip {
@@ -396,12 +737,184 @@
       .stage { grid-template-columns: 48px 1fr; }
       .stage .button-row { grid-column: 1 / -1; }
     }
+
+    /* Final OSPC/FLEX dashboard style lock */
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 14px;
+      color: #ffffff;
+      background: linear-gradient(120deg, #2a4e8d 0%, #374a86 45%, #5a4b72 100%);
+      overflow-x: hidden;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    .app {
+      max-width: 1200px;
+      width: auto;
+      margin: 0 auto;
+      padding: 28px 16px 40px;
+    }
+
+    .hero {
+      display: block;
+      padding: 0;
+      border-bottom: 0;
+    }
+
+    .title-bar {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      color: var(--accent-ink);
+      background: transparent;
+      box-shadow: none;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+    }
+
+    .neon-title {
+      margin: 4px 0 6px;
+      font-size: clamp(1.9rem, 3.5vw, 3rem);
+      line-height: 1.05;
+      text-shadow: 0 0 16px rgba(202, 141, 255, 0.55), 0 0 26px rgba(142, 162, 204, 0.35);
+    }
+
+    .ticker {
+      width: min(820px, 100%);
+      margin-top: 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff14;
+      box-shadow: none;
+    }
+
+    .ticker span {
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 600;
+      text-shadow: none;
+    }
+
+    .subtitle {
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    .status-strip {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .metric,
+    .panel,
+    .stage,
+    .console {
+      margin-top: 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      backdrop-filter: blur(8px);
+      padding: 14px;
+      box-shadow: none;
+      animation: rise 260ms ease;
+    }
+
+    .layout {
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    input,
+    textarea,
+    select {
+      border: 1px solid #9fb3ff88;
+      border-radius: 10px;
+      padding: 8px 9px;
+      background: #ffffff14;
+      color: #ffffff;
+    }
+
+    textarea,
+    pre,
+    code,
+    .commands,
+    th,
+    td {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    button {
+      border: 1px solid #8ea2cc;
+      border-radius: 10px;
+      padding: 8px 10px;
+      min-height: auto;
+      font-weight: 600;
+      background: #4b5f91;
+      color: #ffffff;
+      box-shadow: none;
+    }
+
+    button:hover {
+      background: #566ca3;
+      border-color: #a7b7dd;
+    }
+
+    .ghost {
+      background: #ffffff14;
+      color: #ffffff;
+    }
+
+    .danger {
+      background: #6a4b80;
+      border-color: #ca8dff88;
+    }
+
+    .stage {
+      grid-template-columns: 54px 1fr auto;
+    }
+
+    .stage-index,
+    .pill {
+      color: #f8ebff;
+      background: var(--chip);
+      border: 1px solid #a7b7dd88;
+      box-shadow: none;
+    }
+
+    .commands,
+    pre,
+    table {
+      background: #ffffff12;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+
+    th,
+    td {
+      font-size: 0.8rem;
+      padding: 8px;
+      border-bottom: 1px solid #b8c4ff33;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #ffffff1a;
+      color: #ffffff;
+    }
   </style>
 </head>
 <body>
+  <div class="bg-shape bg-shape-a"></div>
+  <div class="bg-shape bg-shape-b"></div>
   <canvas id="radar" aria-hidden="true"></canvas>
-  <main>
-    <header>
+  <main class="app">
+    <header class="hero">
       <section>
         <div class="title-bar">OPENARMS</div>
         <h1 class="neon-title">OpenARMS Mission Control</h1>
