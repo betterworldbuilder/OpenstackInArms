@@ -1,6 +1,6 @@
-# OpenARMS Mission Control
+# OPENARMS X LAB
 
-**OpenARMS Mission Control** is an ARM OpenStack PoC toolkit for Raspberry Pi 5 and ARM64 server hardware.
+**OPENARMS X LAB** is an ARM OpenStack PoC toolkit for Raspberry Pi 5 and ARM64 server hardware.
 
 It has two ways to run:
 
