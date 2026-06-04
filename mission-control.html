@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BrothersInArms Mission Control</title>
+  <title>OpenARMS Mission Control</title>
   <style>
     :root {
       color-scheme: dark;
@@ -90,6 +90,54 @@
       font-size: 0.78rem;
       font-weight: 900;
       text-transform: uppercase;
+    }
+
+    .neon-title {
+      position: relative;
+      display: inline-block;
+      margin: 0;
+      color: #f7fdff;
+      font-size: clamp(2.2rem, 5.4vw, 5rem);
+      line-height: 0.95;
+      letter-spacing: 0;
+      text-shadow:
+        0 0 8px rgba(87, 230, 255, 0.9),
+        0 0 18px rgba(87, 230, 255, 0.74),
+        0 0 34px rgba(255, 79, 216, 0.48),
+        0 0 62px rgba(255, 79, 216, 0.28);
+      animation: neonPulse 2.8s infinite;
+    }
+
+    .ticker {
+      width: min(820px, 100%);
+      margin-top: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(87, 230, 255, 0.22);
+      border-radius: 7px;
+      background: rgba(2, 6, 14, 0.58);
+      box-shadow: inset 0 0 20px rgba(87, 230, 255, 0.08);
+    }
+
+    .ticker span {
+      display: inline-block;
+      min-width: 100%;
+      padding: 9px 0;
+      color: var(--green);
+      font-size: 0.92rem;
+      font-weight: 800;
+      white-space: nowrap;
+      text-shadow: 0 0 12px rgba(96, 247, 161, 0.55);
+      animation: rollSubtitle 18s linear infinite;
+    }
+
+    @keyframes neonPulse {
+      0%, 18%, 22%, 25%, 53%, 57%, 100% { opacity: 1; filter: brightness(1.05); }
+      20%, 24%, 55% { opacity: 0.72; filter: brightness(1.8); }
+    }
+
+    @keyframes rollSubtitle {
+      from { transform: translateX(100%); }
+      to { transform: translateX(-100%); }
     }
 
     .status-strip {
@@ -355,8 +403,11 @@
   <main>
     <header>
       <section>
-        <div class="title-bar">OPENSTACKK BROTHERS and SISTERS in ARM</div>
-        <h1>BrothersInArms Mission Control</h1>
+        <div class="title-bar">OPENARMS</div>
+        <h1 class="neon-title">OpenARMS Mission Control</h1>
+        <div class="ticker" aria-label="Mission subtitle">
+          <span>for the Crazy ones, the Brothers and Sisters in Arms who think Why not ?</span>
+        </div>
         <p class="subtitle">A clean cockpit for the Raspberry Pi / ARM64 OpenStack PoC: edit node targets, generate inventory, launch controlled steps, and keep the terminal output in one place.</p>
       </section>
       <section class="status-strip" aria-label="PoC status">
@@ -441,7 +492,7 @@
               <button class="ghost" id="clearLog">Clear</button>
             </div>
           </div>
-          <pre id="output">BrothersInArms Mission Control ready.
+          <pre id="output">OpenARMS Mission Control ready.
 Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
         </section>
       </section>
@@ -692,7 +743,7 @@ Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
       $("nodes").value = "192.168.10.11 pi-os-ctrl controller\n192.168.10.12 pi-os-cmp1 compute";
     });
 
-    $("clearLog").addEventListener("click", () => output.textContent = "BrothersInArms Mission Control ready.");
+    $("clearLog").addEventListener("click", () => output.textContent = "OpenARMS Mission Control ready.");
     document.querySelectorAll("input").forEach((input) => input.addEventListener("input", renderStages));
     $("openstackReleaseChoice").addEventListener("change", syncReleasePicker);
     $("openstackReleaseCustom").addEventListener("input", renderStages);

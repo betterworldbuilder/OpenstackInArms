@@ -1,6 +1,6 @@
-# BrothersInArms Mission Control
+# OpenARMS Mission Control
 
-**OPENSTACKK BROTHERS and SISTERS in ARM** is an ARM OpenStack PoC toolkit for Raspberry Pi 5 and ARM64 server hardware.
+**OpenARMS Mission Control** is an ARM OpenStack PoC toolkit for Raspberry Pi 5 and ARM64 server hardware.
 
 It has two ways to run:
 
