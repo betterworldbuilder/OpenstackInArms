@@ -1228,7 +1228,7 @@
 
     .stage-tabs {
       display: grid;
-      grid-template-columns: repeat(7, minmax(120px, 1fr));
+      grid-template-columns: repeat(9, minmax(105px, 1fr));
       gap: 4px;
       margin: 10px 0 18px;
     }
@@ -1588,6 +1588,8 @@
       <button type="button" class="stage-tab">Stage 4<span>Deploy</span></button>
       <button type="button" class="stage-tab">Stage 5<span>Validate</span></button>
       <button type="button" class="stage-tab">Stage 6<span>Build Images</span></button>
+      <button type="button" class="stage-tab">Stage 7<span>Result Stage</span></button>
+      <button type="button" class="stage-tab">Stage 8<span>Fix & Retest</span></button>
     </nav>
 
     <section class="layout">
@@ -1703,6 +1705,18 @@
         title: "Build ARM64 Images",
         body: "Optional private ARM64 Kolla image build path.",
         command: "OPENSTACK_RELEASE=$OPENSTACK_RELEASE scripts/05_build_arm64_kolla_images.sh"
+      },
+      {
+        id: "result",
+        title: "Result Stage",
+        body: "Read every stage monitor, summarize what works, what failed, and extract the error lines that matter.",
+        command: "analyze stage monitors and build result summary"
+      },
+      {
+        id: "fix",
+        title: "Hardware & Software Fix",
+        body: "Turn Result Stage errors into hardware and software configuration changes, then loop back to Stage 1 for retest.",
+        command: "suggest fixes from Result Stage and retest Stage 1"
       }
     ];
 
@@ -1817,6 +1831,80 @@
       document.querySelectorAll("button").forEach((button) => button.disabled = busy);
     }
 
+    function stageButtonLabel(stage) {
+      if (stage.id === "scan") return "Scan";
+      if (stage.id === "result") return "Analyze";
+      if (stage.id === "fix") return "Suggest";
+      if (stage.danger) return "Deploy";
+      return "Run";
+    }
+
+    function stageStatus(log) {
+      if (!log.trim()) return "not run";
+      if (/exit code:\s*0\b/i.test(log)) return "works";
+      if (/(ERROR|FAILED|fatal:|Traceback|No reachable|Permission denied|timed out|exit code:\s*[1-9])/i.test(log)) return "needs attention";
+      return "has output";
+    }
+
+    function importantLines(log) {
+      return log
+        .split("\n")
+        .filter((line) => /(ERROR|FAILED|fatal:|Traceback|Permission denied|timed out|unreachable|No reachable|exit code:\s*[1-9])/i.test(line))
+        .slice(-14);
+    }
+
+    function analyzeResults() {
+      const sourceStages = stages.filter((stage) => !["result", "fix"].includes(stage.id));
+      const summary = sourceStages.map((stage) => {
+        const log = stageLogs.get(stage.id) || "";
+        return `${stage.title}: ${stageStatus(log)}`;
+      });
+      const errors = sourceStages.flatMap((stage) => importantLines(stageLogs.get(stage.id) || "").map((line) => `[${stage.title}] ${line}`));
+      const output = [
+        "$ analyze stage monitors",
+        "",
+        "WHAT WORKS / CURRENT SIGNAL",
+        ...summary.map((line) => `- ${line}`),
+        "",
+        "ERROR LOG ANALYSIS",
+        ...(errors.length ? errors.map((line) => `- ${line}`) : ["- No high-signal error lines found yet. Run stages first, then analyze again."]),
+        "",
+        "NEXT MOVE",
+        errors.length ? "- Open Hardware & Software Fix for suggested changes." : "- If all required stages show works, continue validation or document the PoC result."
+      ].join("\n");
+      stageLogs.set("result", output);
+      renderStages();
+    }
+
+    function suggestFixes() {
+      const allLogs = [...stageLogs.entries()].filter(([id]) => id !== "fix").map(([, log]) => log).join("\n");
+      const suggestions = [];
+
+      if (/Permission denied|publickey|Could not read from remote/i.test(allLogs)) suggestions.push("SSH/auth: verify SSH_USER, keys, GitHub/deploy keys, and passwordless sudo on every ARM node.");
+      if (/No reachable|unreachable|timed out|Network is unreachable|Name or service not known/i.test(allLogs)) suggestions.push("Network: check laptop LAN, Pi/server IPs, switch/VLAN, firewall, and that SSH port 22 is reachable.");
+      if (/aarch64|arm64|architecture|exec format|no matching manifest|image/i.test(allLogs)) suggestions.push("ARM images: use ARM64 images only, set architecture=aarch64 metadata, and build/pull ARM64 Kolla images if missing.");
+      if (/kvm|virtualization|libvirt|nova-compute/i.test(allLogs)) suggestions.push("Compute: enable virtualization/KVM where hardware supports it; on Raspberry Pi validate kernel modules and libvirt/nova logs.");
+      if (/disk|space|No space|volume|cinder|lvm/i.test(allLogs)) suggestions.push("Storage: move PoC disks to SSD/NVMe, verify free space, volume group, and avoid SD cards for Cinder/Ceph experiments.");
+      if (/interface|eth0|ovs|bridge|neutron|provider|floating|gateway/i.test(allLogs)) suggestions.push("Networking: confirm EXT_IFACE, provider CIDR/gateway/pool, OVS bridge state, and that the VIP is unused.");
+      if (/docker|container|registry|pull access|manifest/i.test(allLogs)) suggestions.push("Containers: verify Docker, registry access, image namespace, and OpenStack release image availability for ARM64.");
+
+      if (!suggestions.length) suggestions.push("No obvious error pattern yet. Run Result Stage after failing stages, then return here for targeted fixes.");
+
+      const output = [
+        "$ suggest hardware and software fixes from Result Stage",
+        "",
+        "RECOMMENDED FIXES",
+        ...suggestions.map((item) => `- ${item}`),
+        "",
+        "LOOP BACK",
+        "- Apply the fixes above.",
+        "- Click Retest to run Stage 1: Prereq Scan again.",
+        "- If Stage 1 passes, continue Stage 2 onward."
+      ].join("\n");
+      stageLogs.set("fix", output);
+      renderStages();
+    }
+
     async function api(path, payload) {
       const response = await fetch(path, {
         method: "POST",
@@ -1831,6 +1919,14 @@
     async function runStage(stage) {
       if (stage.id === "scan") {
         await scanLan();
+        return;
+      }
+      if (stage.id === "result") {
+        analyzeResults();
+        return;
+      }
+      if (stage.id === "fix") {
+        suggestFixes();
         return;
       }
       if (stage.danger && !confirm("Deploy will change remote ARM nodes and /etc/kolla. Continue?")) return;
@@ -1929,7 +2025,8 @@
             <div class="commands">${commandText(stage)}</div>
           </div>
           <div class="button-row">
-            <button class="${stage.danger ? "danger" : ""}" data-run="${stage.id}">${stage.id === "scan" ? "Scan" : stage.danger ? "Deploy" : "Run"}</button>
+            <button class="${stage.danger ? "danger" : ""}" data-run="${stage.id}">${stageButtonLabel(stage)}</button>
+            ${stage.id === "fix" ? `<button data-run="prereqs">Retest</button>` : ""}
             <button class="ghost" data-copy="${stage.id}">Copy</button>
           </div>
           <pre class="stage-monitor" id="monitor-${stage.id}">${escapeHtml(stageLogs.get(stage.id) || "")}</pre>
