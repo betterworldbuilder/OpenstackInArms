@@ -216,6 +216,13 @@
       border-top: 1px solid var(--line);
     }
 
+    .hint {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
     input:focus, textarea:focus {
       border-color: var(--cyan);
       box-shadow: 0 0 0 3px rgba(87, 230, 255, 0.11);
@@ -396,8 +403,15 @@
         <label for="sshUser">SSH User</label>
         <input id="sshUser" value="ubuntu">
 
-        <label for="openstackRelease">OpenStack Release</label>
-        <input id="openstackRelease" value="2025.1">
+        <label for="openstackReleaseChoice">OpenStack Release</label>
+        <select id="openstackReleaseChoice">
+          <option value="2025.1" selected>2025.1 Epoxy</option>
+          <option value="2024.2">2024.2 Dalmatian</option>
+          <option value="2024.1">2024.1 Caracal</option>
+          <option value="custom">Custom</option>
+        </select>
+        <input id="openstackReleaseCustom" value="2025.1" hidden>
+        <p class="hint">Release is passed as <code>OPENSTACK_RELEASE</code> to Kolla-Ansible.</p>
 
         <label for="vip">VIP</label>
         <input id="vip" value="192.168.10.250">
@@ -489,7 +503,7 @@ Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
       return {
         LAN_CIDR: $("lanCidr").value.trim(),
         SSH_USER: $("sshUser").value.trim(),
-        OPENSTACK_RELEASE: $("openstackRelease").value.trim(),
+        OPENSTACK_RELEASE: selectedOpenStackRelease(),
         VIP: $("vip").value.trim(),
         EXT_IFACE: $("extIface").value.trim(),
         CIDR: $("cidr").value.trim(),
@@ -497,6 +511,19 @@ Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
         POOL_START: $("poolStart").value.trim(),
         POOL_END: $("poolEnd").value.trim()
       };
+    }
+
+    function selectedOpenStackRelease() {
+      const choice = $("openstackReleaseChoice").value;
+      if (choice === "custom") return $("openstackReleaseCustom").value.trim() || "2025.1";
+      return choice;
+    }
+
+    function syncReleasePicker() {
+      const custom = $("openstackReleaseChoice").value === "custom";
+      $("openstackReleaseCustom").hidden = !custom;
+      $("releaseMetric").textContent = selectedOpenStackRelease();
+      renderStages();
     }
 
     function escapeHtml(value) {
@@ -614,7 +641,7 @@ Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
     }
 
     function renderStages() {
-      $("releaseMetric").textContent = $("openstackRelease").value.trim() || "2025.1";
+      $("releaseMetric").textContent = selectedOpenStackRelease();
       $("stages").innerHTML = "";
       stages.forEach((stage, index) => {
         const node = document.createElement("article");
@@ -667,6 +694,8 @@ Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
 
     $("clearLog").addEventListener("click", () => output.textContent = "BrothersInArms Mission Control ready.");
     document.querySelectorAll("input").forEach((input) => input.addEventListener("input", renderStages));
+    $("openstackReleaseChoice").addEventListener("change", syncReleasePicker);
+    $("openstackReleaseCustom").addEventListener("input", renderStages);
     renderStages();
 
     const canvas = $("radar");

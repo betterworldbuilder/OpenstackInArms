@@ -1,15 +1,17 @@
-# ARM OpenStack PoC
+# BrothersInArms Mission Control
 
-**BrothersInArms Mission Control** is a small mission-control style toolkit for proving that OpenStack can run on ARM64 lab hardware.
+**OPENSTACKK BROTHERS and SISTERS in ARM** is an ARM OpenStack PoC toolkit for Raspberry Pi 5 and ARM64 server hardware.
 
-It gives you two ways to operate:
+It has two ways to run:
 
-- **Mission Control Web UI**: a simple neon cockpit with the `OPENSTACKK BROTHERS and SISTERS in ARM` title bar, LAN discovery, node selection, and buttons for each PoC stage.
-- **CLI scripts**: direct Bash/Python scripts for repeatable terminal-driven deployment.
+- **Automatic Web UI Mode**: a local neon Mission Control interface that scans the LAN, lets you choose ARM nodes, and runs each PoC stage with buttons.
+- **Manual Mode**: direct CLI commands for users who want terminal-only control.
 
-The target hardware is Raspberry Pi 5 for low-cost lab/demo work and server-grade ARM64 hardware for serious validation.
+This is a PoC, not a production SLA deployment.
 
-The goal is to validate:
+## Goal
+
+Validate a small ARM64 OpenStack environment:
 
 - ARM64 OpenStack control plane services
 - ARM64 Linux VM boot
@@ -18,9 +20,7 @@ The goal is to validate:
 - Cinder LVM lab volume
 - Serial console as the noVNC workaround
 
-This is not a production SLA deployment.
-
-## Launch Mission Control
+## Automatic Web UI Mode
 
 Start the local web UI from the repo root:
 
@@ -35,55 +35,50 @@ Open:
 http://127.0.0.1:8787
 ```
 
-The UI is localhost-only and runs an allowlist of PoC steps. The first stage scans your LAN, shows reachable candidates in a table, and lets you choose which IPs are ARM servers or Raspberry Pis for the PoC.
+The UI is localhost-only. It runs an allowlist of PoC actions and does not expose arbitrary shell command execution.
 
-| Stage | Button | What It Runs |
+### Web UI Stages
+
+| Stage | Button | Purpose |
 |---|---|---|
-| 01 LAN Scout | Scan | LAN ping sweep plus SSH architecture probe |
-| 02 Prereq Scan | Run | `scripts/00_check_prereqs.sh` |
-| 03 Bootstrap ARM Nodes | Run | `scripts/01_bootstrap_arm_nodes.sh` |
-| 04 Generate Inventory | Run | `scripts/02_generate_inventory.py` |
-| 05 Deploy Kolla ARM | Deploy | `scripts/03_deploy_kolla_arm.sh` |
-| 06 Validate Cloud | Run | `scripts/04_validate_arm_openstack.sh` |
-| 07 Build ARM64 Images | Run | `scripts/05_build_arm64_kolla_images.sh` |
+| 01 LAN Scout | Scan | Scan a CIDR, discover reachable IPs, probe SSH, and detect ARM candidates |
+| 02 Prereq Scan | Run | Check local tools, node file format, and SSH reachability |
+| 03 Bootstrap ARM Nodes | Run | Install base packages and check KVM/Open vSwitch readiness |
+| 04 Generate Inventory | Run | Generate `multinode-arm.ini` for Kolla-Ansible |
+| 05 Deploy Kolla ARM | Deploy | Run Kolla bootstrap, prechecks, deploy, and post-deploy |
+| 06 Validate Cloud | Run | Upload ARM64 image, create flavor/network, boot VM, show serial console |
+| 07 Build ARM64 Images | Run | Optional private ARM64 Kolla image build |
 
-Use the UI for demos and guided operation. Use the CLI commands below when you want exact terminal control.
+### LAN Scout
 
-## Mission Control Flow
+1. Enter a LAN range, for example `192.168.10.0/24`.
+2. Click **Scan LAN**.
+3. Review the detected hosts table.
+4. Tick the ARM Raspberry Pi or ARM server IPs you want to use.
+5. Assign each selected host a role: `controller`, `compute`, `storage`, or `all`.
+6. Click **Use Selected** to draft `nodes.txt`.
+7. Click **Save Nodes**.
 
-1. **LAN Scout**: enter a CIDR such as `192.168.10.0/24`, scan the LAN, then select which discovered IPs should be used.
-2. **Choose Roles**: assign `controller`, `compute`, `storage`, or `all` in the results table.
-3. **Save Nodes**: generate `nodes.txt` from the selected rows.
-4. **Prereq Scan**: verify local tools, node file format, and SSH reachability.
-5. **Bootstrap ARM Nodes**: install base packages and check KVM/Open vSwitch readiness.
-6. **Generate Inventory**: create `multinode-arm.ini` for Kolla-Ansible.
-7. **Deploy Kolla ARM**: run Kolla bootstrap, prechecks, deploy, and post-deploy.
-8. **Validate Cloud**: upload an ARM64 image, create a tiny flavor/network, boot a VM, and print the serial console URL.
-9. **Build ARM64 Images**: optional path for private ARM64 Kolla images.
+### OpenStack Release Picker
 
-## Why / What / So What / What Now
+The Web UI lets the user choose the release before deployment.
 
-### Why
+| Release | Name | Notes |
+|---|---|---|
+| `2025.1` | Epoxy | Default PoC baseline |
+| `2024.2` | Dalmatian | Fallback for older Kolla-Ansible testing |
+| `2024.1` | Caracal | Older validation target |
+| custom | Any valid Kolla branch/version | User-defined `OPENSTACK_RELEASE` |
 
-ARM servers are becoming practical for edge, lab, and low-power cloud experiments. This PoC answers one simple question: can we stand up a small OpenStack environment on ARM64 and boot ARM64 cloud workloads safely?
+The selected release is passed to deployment as:
 
-### What
+```bash
+OPENSTACK_RELEASE=<selected-release>
+```
 
-This repo provides scripts and documentation for a Kolla-Ansible based ARM OpenStack PoC. It targets Raspberry Pi 5 for low-cost lab testing and server-grade ARM64 hardware for more serious validation.
+## Manual Mode
 
-### So What
-
-The value is learning the real limits before investing in a larger ARM cloud design:
-
-- Validate ARM64 OpenStack services.
-- Boot ARM64 Linux cloud images.
-- Test basic Neutron networking.
-- Use serial console when noVNC is unreliable.
-- Avoid mixing x86 images with ARM compute nodes.
-
-### What Now
-
-Start with the Mission Control UI and the 2-node Raspberry Pi PoC below. If the basics work, move to 3+ nodes or ARM server hardware, then consider phase 2 items such as Ceph, Octavia, and stronger networking.
+Use Manual Mode when you want exact terminal control.
 
 ## Recommended Release
 
@@ -93,12 +88,11 @@ Default:
 OPENSTACK_RELEASE=2025.1
 ```
 
-Use OpenStack 2025.1 as the default PoC baseline. The deployment script installs Kolla-Ansible from `stable/${OPENSTACK_RELEASE}` by default and allows override with `KOLLA_ANSIBLE_SOURCE`.
+The deployment script installs Kolla-Ansible from `stable/${OPENSTACK_RELEASE}` by default and allows override with `KOLLA_ANSIBLE_SOURCE`.
 
 ## Folder Layout
 
 ```text
-
 ├── README.md
 ├── mission-control.html
 ├── nodes.example.txt
@@ -117,9 +111,7 @@ Use OpenStack 2025.1 as the default PoC baseline. The deployment script installs
     └── troubleshooting.md
 ```
 
-## Step 1: Create Node File
-
-You can create `nodes.txt` in Mission Control with the **Save Nodes** button, or create it manually:
+## Manual Step 1: Create Node File
 
 Copy the example:
 
@@ -137,66 +129,7 @@ Example:
 192.168.10.13 pi-os-cmp2 compute
 ```
 
-## Example: 2 Raspberry Pi 5 PoC
-
-This is the smallest useful lab shape:
-
-| Node | Example IP | Role | Purpose |
-|---|---|---|---|
-| Pi 1 | 192.168.10.11 | controller | API, scheduler, network, Horizon, control services |
-| Pi 2 | 192.168.10.12 | compute | Nova compute, ARM64 test VM |
-
-Use this for a first demo, not production. Both Pis should run Ubuntu Server ARM64, use wired Ethernet, and preferably boot from NVMe or USB SSD rather than SD card.
-
-Create `nodes.txt`:
-
-```text
-192.168.10.11 pi-os-ctrl controller
-192.168.10.12 pi-os-cmp1 compute
-```
-
-Run the flow:
-
-```bash
-cd /home/dzoan/OSPC2FLEX/Openstack-SisandBrotherInArms
-
-NODE_LIST=nodes.txt SSH_USER=ubuntu scripts/00_check_prereqs.sh
-NODE_LIST=nodes.txt SSH_USER=ubuntu scripts/01_bootstrap_arm_nodes.sh
-
-ssh ubuntu@192.168.10.11 sudo reboot
-ssh ubuntu@192.168.10.12 sudo reboot
-
-python3 scripts/02_generate_inventory.py \
-  --nodes nodes.txt \
-  --output multinode-arm.ini \
-  --ansible-user ubuntu
-
-OPENSTACK_RELEASE=2025.1 \
-VIP=192.168.10.250 \
-EXT_IFACE=eth0 \
-INVENTORY=multinode-arm.ini \
-scripts/03_deploy_kolla_arm.sh
-```
-
-Validate with an ARM64 image:
-
-```bash
-OPENRC=/etc/kolla/admin-openrc.sh \
-CIDR=192.168.100.0/24 \
-GW=192.168.100.1 \
-POOL_START=192.168.100.100 \
-POOL_END=192.168.100.200 \
-scripts/04_validate_arm_openstack.sh
-```
-
-Expected proof:
-
-```bash
-openstack server list
-openstack console url show arm-test-01 --serial
-```
-
-## Step 2: Check Prerequisites
+## Manual Step 2: Check Prerequisites
 
 ```bash
 cd /home/dzoan/OSPC2FLEX/Openstack-SisandBrotherInArms
@@ -204,7 +137,7 @@ chmod +x scripts/*.sh
 NODE_LIST=nodes.txt SSH_USER=ubuntu scripts/00_check_prereqs.sh
 ```
 
-## Step 3: Bootstrap ARM Nodes
+## Manual Step 3: Bootstrap ARM Nodes
 
 ```bash
 NODE_LIST=nodes.txt SSH_USER=ubuntu scripts/01_bootstrap_arm_nodes.sh
@@ -218,7 +151,7 @@ ssh ubuntu@192.168.10.12 sudo reboot
 ssh ubuntu@192.168.10.13 sudo reboot
 ```
 
-## Step 4: Generate Kolla Inventory
+## Manual Step 4: Generate Kolla Inventory
 
 ```bash
 python3 scripts/02_generate_inventory.py \
@@ -227,9 +160,11 @@ python3 scripts/02_generate_inventory.py \
   --ansible-user ubuntu
 ```
 
-## Step 5: Deploy OpenStack
+## Manual Step 5: Deploy OpenStack
 
-Set an unused VIP in the same management network.
+Set an unused VIP in the same management network and choose the OpenStack release.
+
+Default:
 
 ```bash
 OPENSTACK_RELEASE=2025.1 \
@@ -239,7 +174,17 @@ INVENTORY=multinode-arm.ini \
 scripts/03_deploy_kolla_arm.sh
 ```
 
-## Step 6: Validate ARM OpenStack
+Different release example:
+
+```bash
+OPENSTACK_RELEASE=2024.2 \
+VIP=192.168.10.250 \
+EXT_IFACE=eth0 \
+INVENTORY=multinode-arm.ini \
+scripts/03_deploy_kolla_arm.sh
+```
+
+## Manual Step 6: Validate ARM OpenStack
 
 Set provider network values that match your lab network before creating a test VM:
 
@@ -269,6 +214,24 @@ REGISTRY=localhost:5000 \
 NAMESPACE=kolla-arm64 \
 scripts/05_build_arm64_kolla_images.sh
 ```
+
+## 2 Raspberry Pi 5 PoC Example
+
+Smallest useful lab shape:
+
+| Node | Example IP | Role | Purpose |
+|---|---|---|---|
+| Pi 1 | 192.168.10.11 | controller | API, scheduler, network, Horizon, control services |
+| Pi 2 | 192.168.10.12 | compute | Nova compute, ARM64 test VM |
+
+Example `nodes.txt`:
+
+```text
+192.168.10.11 pi-os-ctrl controller
+192.168.10.12 pi-os-cmp1 compute
+```
+
+Use wired Ethernet. Prefer NVMe or USB SSD over SD card.
 
 ## What Is Included
 
