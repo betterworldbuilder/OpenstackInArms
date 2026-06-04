@@ -37,6 +37,38 @@ finally:
 PY
 }
 
+stop_previous_runs() {
+  local pids
+  pids="$(pgrep -f '06_mission_control_server.py' || true)"
+
+  if [[ -n "$pids" ]]; then
+    printf 'Stopping previous Mission Control run(s): %s\n' "$pids"
+    kill $pids >/dev/null 2>&1 || true
+  fi
+
+  for _ in {1..20}; do
+    if ! port_busy; then
+      return 0
+    fi
+    sleep 0.25
+  done
+
+  if [[ -n "$pids" ]]; then
+    printf 'Previous run still holds port %s; forcing stop.\n' "$PORT"
+    kill -9 $pids >/dev/null 2>&1 || true
+  fi
+
+  for _ in {1..10}; do
+    if ! port_busy; then
+      return 0
+    fi
+    sleep 0.25
+  done
+
+  printf 'ERROR: Port %s is still busy. Try MISSION_CONTROL_PORT=<port> ./Openarm.sh\n' "$PORT" >&2
+  exit 1
+}
+
 need_cmd python3
 
 cd "$SCRIPT_DIR"
@@ -45,12 +77,7 @@ printf '\nOPENSTACKK BROTHERS and SISTERS in ARM\n'
 printf 'Starting BrothersInArms Mission Control\n'
 printf 'URL: %s\n\n' "$URL"
 
-if port_busy; then
-  printf 'Mission Control is already running on port %s.\n' "$PORT"
-  printf 'Opening existing session: %s\n\n' "$URL"
-  open_browser
-  exit 0
-fi
+stop_previous_runs
 
 (
   sleep 1
