@@ -1204,8 +1204,8 @@
 
     .layout {
       display: grid !important;
-      grid-template-columns: minmax(330px, 430px) minmax(0, 1fr) !important;
-      gap: 14px !important;
+      grid-template-columns: minmax(360px, var(--sidebar-width, 470px)) 12px minmax(0, 1fr) !important;
+      gap: 10px !important;
       margin-top: 0 !important;
     }
 
@@ -1224,6 +1224,38 @@
       top: 10px;
       max-height: calc(100vh - 20px);
       overflow: auto;
+    }
+
+    .splitter {
+      position: sticky;
+      top: 10px;
+      width: 12px;
+      min-height: calc(100vh - 20px);
+      align-self: start;
+      border: 1px solid rgba(0, 229, 255, 0.34);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, transparent, rgba(0, 229, 255, 0.22), transparent),
+        rgba(0, 10, 18, 0.92);
+      box-shadow: 0 0 14px rgba(0, 229, 255, 0.25), inset 0 0 12px rgba(57, 255, 20, 0.1);
+      cursor: col-resize;
+    }
+
+    .splitter::before {
+      content: "";
+      position: absolute;
+      inset: 50% 3px auto;
+      height: 80px;
+      transform: translateY(-50%);
+      border-left: 1px solid var(--cyan);
+      border-right: 1px solid var(--green);
+      opacity: 0.86;
+    }
+
+    .splitter:hover,
+    .splitter.dragging {
+      border-color: var(--cyan);
+      box-shadow: 0 0 18px rgba(0, 229, 255, 0.55), inset 0 0 16px rgba(57, 255, 20, 0.18);
     }
 
     h2,
@@ -1356,6 +1388,41 @@
       background: rgba(0, 229, 255, 0.07);
     }
 
+    .scan-box {
+      overflow-x: auto !important;
+      padding-bottom: 4px;
+    }
+
+    .scan-box table {
+      min-width: 680px;
+      table-layout: auto;
+    }
+
+    .scan-box th:nth-child(1),
+    .scan-box td:nth-child(1) {
+      width: 52px;
+      text-align: center;
+    }
+
+    .scan-box th:nth-child(2),
+    .scan-box td:nth-child(2) {
+      width: 128px;
+    }
+
+    .scan-box th:nth-child(3),
+    .scan-box td:nth-child(3) {
+      min-width: 220px;
+    }
+
+    .scan-box td input[data-scan-host] {
+      min-width: 210px;
+      width: 100%;
+    }
+
+    .scan-box td select {
+      min-width: 126px;
+    }
+
     .console {
       margin-top: 12px !important;
       border-color: rgba(57, 255, 20, 0.34) !important;
@@ -1389,6 +1456,10 @@
       .status-strip,
       .layout {
         grid-template-columns: 1fr !important;
+      }
+
+      .splitter {
+        display: none;
       }
 
       .panel {
@@ -1452,7 +1523,7 @@
               <tr>
                 <th>Use</th>
                 <th>IP</th>
-                <th>Host</th>
+                <th>Name / Host</th>
                 <th>Arch</th>
                 <th>Role</th>
               </tr>
@@ -1501,6 +1572,8 @@
         <label for="poolEnd">Pool End</label>
         <input id="poolEnd" value="192.168.100.200">
       </aside>
+
+      <div class="splitter" id="splitter" role="separator" aria-label="Resize scan panel" aria-orientation="vertical"></div>
 
       <section>
         <div class="stage-grid" id="stages"></div>
@@ -1568,6 +1641,51 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
     const $ = (id) => document.getElementById(id);
     const output = $("output");
     let scanRows = [];
+    let splitDrag = null;
+
+    function setSidebarWidth(width) {
+      const max = Math.max(520, Math.min(window.innerWidth - 520, 880));
+      const next = Math.max(360, Math.min(width, max));
+      document.documentElement.style.setProperty("--sidebar-width", `${next}px`);
+      localStorage.setItem("openarmsSidebarWidth", String(next));
+    }
+
+    function initSplitter() {
+      const savedWidth = Number(localStorage.getItem("openarmsSidebarWidth"));
+      if (savedWidth) setSidebarWidth(savedWidth);
+
+      const splitter = $("splitter");
+      if (!splitter) return;
+
+      splitter.addEventListener("pointerdown", (event) => {
+        splitDrag = {
+          startX: event.clientX,
+          startWidth: document.querySelector(".panel").getBoundingClientRect().width
+        };
+        splitter.classList.add("dragging");
+        splitter.setPointerCapture(event.pointerId);
+        event.preventDefault();
+      });
+
+      splitter.addEventListener("pointermove", (event) => {
+        if (!splitDrag) return;
+        setSidebarWidth(splitDrag.startWidth + event.clientX - splitDrag.startX);
+      });
+
+      function endDrag(event) {
+        if (!splitDrag) return;
+        splitDrag = null;
+        splitter.classList.remove("dragging");
+        if (splitter.hasPointerCapture(event.pointerId)) splitter.releasePointerCapture(event.pointerId);
+      }
+
+      splitter.addEventListener("pointerup", endDrag);
+      splitter.addEventListener("pointercancel", endDrag);
+      window.addEventListener("resize", () => {
+        const width = Number(localStorage.getItem("openarmsSidebarWidth"));
+        if (width) setSidebarWidth(width);
+      });
+    }
 
     function values() {
       return {
@@ -1662,7 +1780,7 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
         <tr>
           <td><input type="checkbox" data-scan-use="${index}" ${row.arm ? "checked" : ""}></td>
           <td>${escapeHtml(row.ip)}</td>
-          <td><input value="${escapeHtml(row.hostname === "unknown" ? `arm-node-${index + 1}` : row.hostname)}" data-scan-host="${index}"></td>
+          <td><input title="${escapeHtml(row.hostname === "unknown" ? "No DNS/SSH/NetBIOS name resolved; generated endpoint alias" : row.hostname)}" value="${escapeHtml(row.hostname === "unknown" ? `endpoint-${row.ip.replaceAll(".", "-")}` : row.hostname)}" data-scan-host="${index}"></td>
           <td>${row.arm ? "ARM" : escapeHtml(row.arch)}${row.ssh ? "" : " / SSH closed"}</td>
           <td>
             <select data-scan-role="${index}">
@@ -1767,6 +1885,7 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
     document.querySelectorAll("input").forEach((input) => input.addEventListener("input", renderStages));
     $("openstackReleaseChoice").addEventListener("change", syncReleasePicker);
     $("openstackReleaseCustom").addEventListener("input", renderStages);
+    initSplitter();
     renderStages();
 
     const canvas = $("radar");

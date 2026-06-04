@@ -105,6 +105,56 @@ def local_lan_networks() -> list[ipaddress.IPv4Network]:
     return unique
 
 
+def resolve_endpoint_name(ip: str) -> str:
+    try:
+        name = socket.gethostbyaddr(ip)[0].strip(".")
+        if name:
+            return name
+    except (OSError, socket.herror):
+        pass
+
+    if shutil.which("powershell.exe"):
+        ps_script = (
+            f"$r = Resolve-DnsName -Name '{ip}' -ErrorAction SilentlyContinue; "
+            "$r | Where-Object { $_.NameHost } | Select-Object -First 1 -ExpandProperty NameHost"
+        )
+        try:
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-Command", ps_script],
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=3,
+            )
+        except subprocess.TimeoutExpired:
+            return "unknown"
+        name = result.stdout.strip().replace("\r", "").strip(".")
+        if name:
+            return name
+
+    nbtstat = shutil.which("nbtstat.exe") or shutil.which("nbtstat")
+    if nbtstat:
+        try:
+            result = subprocess.run(
+                [nbtstat, "-A", ip],
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=4,
+            )
+        except subprocess.TimeoutExpired:
+            return "unknown"
+        for line in result.stdout.splitlines():
+            clean = " ".join(line.strip().split())
+            if "<00>" not in clean or "UNIQUE" not in clean:
+                continue
+            name = clean.split("<00>", 1)[0].strip()
+            if name and not name.startswith("__"):
+                return name
+
+    return "unknown"
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         print(f"[mission-control] {self.address_string()} {fmt % args}")
@@ -208,6 +258,8 @@ class Handler(BaseHTTPRequestHandler):
                     hostname = parts[0]
                 if len(parts) > 1:
                     arch = parts[1]
+            if hostname == "unknown":
+                hostname = resolve_endpoint_name(ip)
             arm = arch in {"aarch64", "arm64", "armv7l"}
             return {
                 "ip": ip,
