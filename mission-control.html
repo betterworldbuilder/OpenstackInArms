@@ -1194,6 +1194,99 @@
         0 0 24px var(--cyan);
     }
 
+    .howto {
+      width: min(1500px, 100%);
+      margin: 14px auto 0;
+      text-align: left;
+      background: rgba(5, 14, 32, 0.88);
+      border: 1px solid rgba(0, 229, 255, 0.38);
+      border-radius: 8px;
+      box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.08), 0 0 14px rgba(0, 229, 255, 0.22);
+      overflow: hidden;
+    }
+
+    .howto summary {
+      padding: 12px 16px;
+      color: #ffffff;
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px #ffffff, 0 0 16px var(--cyan);
+    }
+
+    .howto-body {
+      padding: 0 16px 16px;
+      color: #d7e9f7;
+    }
+
+    .howto-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      gap: 8px;
+      margin: 10px 0 16px;
+    }
+
+    .howto-step {
+      padding: 10px;
+      background: rgba(0, 4, 10, 0.62);
+      border: 1px solid rgba(124, 246, 255, 0.28);
+      border-radius: 7px;
+    }
+
+    .howto-step strong {
+      display: block;
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      margin-bottom: 4px;
+      text-shadow: 0 0 8px rgba(57, 255, 20, 0.42);
+    }
+
+    .howto-table-wrap {
+      overflow-x: auto;
+      margin-top: 10px;
+      border: 1px solid rgba(124, 246, 255, 0.22);
+      border-radius: 7px;
+    }
+
+    .howto h3 {
+      margin: 18px 0 8px;
+      font-size: 1rem;
+    }
+
+    .hardware-config {
+      margin-top: 14px;
+      background: rgba(0, 5, 12, 0.52);
+      border: 1px solid rgba(57, 255, 20, 0.26);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .hardware-config summary {
+      color: var(--green);
+      text-shadow: 0 0 8px var(--green), 0 0 14px var(--cyan);
+    }
+
+    .hardware-config-body {
+      padding: 0 12px 14px;
+    }
+
+    .howto table {
+      width: 100%;
+      min-width: 1180px;
+      border: 0 !important;
+      border-radius: 0 !important;
+    }
+
+    .howto th,
+    .howto td {
+      white-space: normal;
+      vertical-align: top;
+      line-height: 1.35;
+    }
+
     .status-strip {
       display: grid !important;
       grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -1568,6 +1661,10 @@
       .stage {
         grid-template-columns: 1fr !important;
       }
+
+      .howto-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -1588,6 +1685,176 @@
         </div>
         <p class="subtitle">A clean cockpit for the Raspberry Pi / ARM64 OpenStack PoC: edit node targets, generate inventory, launch controlled steps, and keep the terminal output in one place.</p>
         <p class="builder-credit">Built wit Love <span class="love-icon" aria-label="love">&hearts;</span> by a Better World Builder - DzoanNguyentran@gmail.com</p>
+        <details class="howto" open>
+          <summary>How To Use OpenARMS</summary>
+          <div class="howto-body">
+            <div class="howto-grid" aria-label="How to use OpenARMS">
+              <div class="howto-step"><strong>01 Discover</strong>Scan the laptop LAN, pick the ARM nodes, assign controller/compute/storage roles, then use the selected nodes.</div>
+              <div class="howto-step"><strong>02 Prepare</strong>Run prereq scan, bootstrap nodes, and generate the Kolla-Ansible inventory from the selected targets.</div>
+              <div class="howto-step"><strong>03 Deploy</strong>Choose the OpenStack release, VIP, external interface, then deploy Kolla ARM when the lab is ready.</div>
+              <div class="howto-step"><strong>04 Validate</strong>Run validation to test ARM64 image boot, Neutron networking, floating IPs, Cinder/LVM, and serial console access.</div>
+              <div class="howto-step"><strong>05 Improve</strong>Use Result Stage to read logs, Hardware & Software Fix to suggest changes, then retest from Stage 01.</div>
+            </div>
+
+            <details class="hardware-config">
+              <summary>POC ARM Hardware configuration</summary>
+              <div class="hardware-config-body">
+                <h3>Recommended Hardware Configuration</h3>
+                <div class="howto-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>PoC Tier</th>
+                        <th>Recommended Hardware</th>
+                        <th>Quantity</th>
+                        <th>Minimum Spec</th>
+                        <th>Better Spec</th>
+                        <th>OpenStack Role</th>
+                        <th>Why Use It</th>
+                        <th>Limitation</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><strong>Option A: Raspberry Pi 5 low-cost lab</strong></td>
+                        <td>Raspberry Pi 5 8GB</td>
+                        <td>3 nodes</td>
+                        <td>4-core ARM Cortex-A76, 8GB RAM, 1GbE</td>
+                        <td>5 nodes, all 8GB RAM</td>
+                        <td>1 controller + 2 compute/storage nodes</td>
+                        <td>Cheapest way to validate ARM OpenStack basics</td>
+                        <td>Not production-grade; limited RAM, NIC, storage, and console support</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Option A storage</strong></td>
+                        <td>NVMe SSD via PCIe HAT</td>
+                        <td>1 per node</td>
+                        <td>256GB NVMe</td>
+                        <td>500GB-1TB NVMe</td>
+                        <td>OS disk / local volume test</td>
+                        <td>Avoids weak SD-card storage</td>
+                        <td>Pi 5 PCIe is only PCIe 2.0 x1</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Option A network</strong></td>
+                        <td>1GbE switch</td>
+                        <td>1</td>
+                        <td>8-port unmanaged switch</td>
+                        <td>Managed VLAN-capable switch</td>
+                        <td>Management + provider network</td>
+                        <td>Enough for simple Neutron/floating IP test</td>
+                        <td>No high-throughput tenant networking</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Option A power/cooling</strong></td>
+                        <td>Official Pi 5 PSU + active cooler</td>
+                        <td>1 per node</td>
+                        <td>Stable 5V/5A PSU</td>
+                        <td>PoE+ HAT + powered switch</td>
+                        <td>Hardware stability</td>
+                        <td>Prevents brownouts and thermal throttling</td>
+                        <td>Consumer-grade reliability</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Option B: Fully compliant ARM server PoC</strong></td>
+                        <td>Ampere Altra / AmpereOne ARM64 server</td>
+                        <td>1-3 servers</td>
+                        <td>32+ ARM64 cores, 128GB RAM, NVMe, 10/25GbE</td>
+                        <td>64-128 cores, 256GB+ RAM, multiple NVMe, dual 25GbE</td>
+                        <td>All-in-one or 1 controller + 2 compute/storage</td>
+                        <td>Realistic ARM cloud validation</td>
+                        <td>Higher cost than Pi</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Option B storage</strong></td>
+                        <td>Enterprise NVMe SSDs</td>
+                        <td>2-4 per server</td>
+                        <td>1TB NVMe</td>
+                        <td>2TB+ enterprise NVMe</td>
+                        <td>Cinder / Ceph RBD test</td>
+                        <td>Suitable for Ceph and VM workload testing</td>
+                        <td>Need proper endurance class</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Option B network</strong></td>
+                        <td>10GbE / 25GbE NIC</td>
+                        <td>1-2 per server</td>
+                        <td>10GbE</td>
+                        <td>Dual 25GbE</td>
+                        <td>Neutron, storage, migration</td>
+                        <td>Much closer to production OpenStack</td>
+                        <td>Requires managed switch</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Option B deployment tool</strong></td>
+                        <td>Kolla-Ansible or OpenStack-Ansible</td>
+                        <td>N/A</td>
+                        <td>Kolla-Ansible AIO</td>
+                        <td>Multi-node Kolla-Ansible / OSA</td>
+                        <td>OpenStack deployment</td>
+                        <td>Kolla-Ansible deploys OpenStack services in Docker containers</td>
+                        <td>Need ARM64 container/image validation</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <h3>Bill of Materials</h3>
+                <div class="howto-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Raspberry Pi PoC BOM</th>
+                        <th>Fully Compliant ARM BOM</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><strong>Compute nodes</strong></td><td>3 x Raspberry Pi 5 8GB</td><td>1-3 x Ampere Altra / AmpereOne ARM64 servers</td></tr>
+                      <tr><td><strong>Boot/storage</strong></td><td>3 x 256GB or 500GB NVMe SSD</td><td>2-4 x enterprise NVMe per server</td></tr>
+                      <tr><td><strong>Storage adapter</strong></td><td>3 x Pi 5 NVMe PCIe HAT</td><td>Native NVMe bays</td></tr>
+                      <tr><td><strong>Cooling</strong></td><td>3 x active coolers</td><td>Server cooling</td></tr>
+                      <tr><td><strong>Power</strong></td><td>3 x official Pi 5 PSU or PoE+</td><td>Redundant PSUs</td></tr>
+                      <tr><td><strong>Network</strong></td><td>1 x 8-port 1GbE switch</td><td>10/25GbE managed switch</td></tr>
+                      <tr><td><strong>OS</strong></td><td>Ubuntu Server ARM64</td><td>Ubuntu Server ARM64 / supported Linux</td></tr>
+                      <tr><td><strong>Deployment</strong></td><td>OpenStack-Ansible or Kolla-Ansible</td><td>Kolla-Ansible or OpenStack-Ansible</td></tr>
+                      <tr><td><strong>Guest image</strong></td><td>Ubuntu/Debian ARM64 cloud image</td><td>Ubuntu/Debian ARM64 cloud image</td></tr>
+                      <tr><td><strong>Storage backend</strong></td><td>LVM first, Ceph optional</td><td>Ceph RBD recommended</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <h3>Pi Lab vs ARM Server PoC</h3>
+                <div class="howto-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Layer</th>
+                        <th>Raspberry Pi Lab PoC</th>
+                        <th>Fully Compliant ARM Server PoC</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><strong>Goal</strong></td><td>Prove OpenStack can run on ARM edge hardware</td><td>Prove ARM64 can run a more realistic cloud platform</td></tr>
+                      <tr><td><strong>Hardware</strong></td><td>3 x Raspberry Pi 5 8GB</td><td>1-3 x Ampere ARM64 servers</td></tr>
+                      <tr><td><strong>CPU</strong></td><td>4-core Cortex-A76 per node</td><td>32-128+ ARM64 server cores</td></tr>
+                      <tr><td><strong>RAM</strong></td><td>8GB per node</td><td>128GB+ per server</td></tr>
+                      <tr><td><strong>Storage</strong></td><td>NVMe via PCIe HAT</td><td>Enterprise NVMe</td></tr>
+                      <tr><td><strong>Network</strong></td><td>1GbE</td><td>10/25GbE</td></tr>
+                      <tr><td><strong>Deployment</strong></td><td>OpenStack-Ansible or lightweight Kolla-Ansible test</td><td>Kolla-Ansible or OpenStack-Ansible</td></tr>
+                      <tr><td><strong>OpenStack version</strong></td><td>2025.1 Epoxy SLURP recommended</td><td>2025.1 Epoxy or 2025.2 Flamingo</td></tr>
+                      <tr><td><strong>Workloads</strong></td><td>Tiny ARM64 Linux VMs only</td><td>ARM64 Linux VMs, Cinder, Neutron, Ceph validation</td></tr>
+                      <tr><td><strong>Console</strong></td><td>Serial console + SSH</td><td>Serial console, validate noVNC separately</td></tr>
+                      <tr><td><strong>Storage test</strong></td><td>Local Cinder/LVM or mini Ceph test</td><td>Ceph RBD / Cinder integration</td></tr>
+                      <tr><td><strong>Production relevance</strong></td><td>Low</td><td>Medium to high</td></tr>
+                      <tr><td><strong>Best use</strong></td><td>Demo, training, edge concept</td><td>Real ARM cloud architecture validation</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
+          </div>
+        </details>
       </section>
       <section class="status-strip" aria-label="PoC status">
         <div class="metric"><span>Release</span><strong id="releaseMetric">2025.1</strong></div>
