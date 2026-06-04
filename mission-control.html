@@ -1289,7 +1289,7 @@
 
     .status-strip {
       display: grid !important;
-      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
       gap: 0 !important;
       margin: 16px 0 10px !important;
       border: 1px solid rgba(57, 255, 20, 0.22);
@@ -1318,9 +1318,20 @@
       margin-top: 3px;
       color: var(--green) !important;
       font-family: 'JetBrains Mono', monospace;
-      font-size: clamp(1.45rem, 2.25vw, 2.4rem) !important;
+      font-size: clamp(1.1rem, 1.65vw, 1.7rem) !important;
       font-weight: 900 !important;
       text-shadow: 0 0 14px var(--green), 0 0 26px rgba(57, 255, 20, 0.45) !important;
+    }
+
+    .metric small {
+      display: block;
+      margin-top: 8px;
+      color: #d7fce0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      line-height: 1.35;
+      white-space: pre-line;
+      text-shadow: 0 0 8px rgba(57, 255, 20, 0.24);
     }
 
     .stage-tabs {
@@ -1856,10 +1867,11 @@
           </div>
         </details>
       </section>
-      <section class="status-strip" aria-label="PoC status">
-        <div class="metric"><span>Release</span><strong id="releaseMetric">2025.1</strong></div>
-        <div class="metric"><span>Topology</span><strong>2 Pi PoC</strong></div>
-        <div class="metric"><span>Console</span><strong>Serial First</strong></div>
+      <section class="status-strip" aria-label="Current PoC status">
+        <div class="metric"><span>Hardware Tier</span><strong id="hardwareTierMetric">Raspberry Pi 5 Lab</strong><small id="hardwareDetailMetric">Scan/select nodes to populate CPU, RAM, disk, and OS.</small></div>
+        <div class="metric"><span>Nodes</span><strong id="nodesMetric">0 selected</strong><small id="nodesDetailMetric">Waiting for ARM targets.</small></div>
+        <div class="metric"><span>OpenStack</span><strong id="releaseMetric">2025.1</strong><small id="releaseDetailMetric">Kolla-Ansible ARM PoC</small></div>
+        <div class="metric"><span>Current Status</span><strong id="statusMetric">Ready to Scan</strong><small id="statusDetailMetric">Start with Stage 01 discovery.</small></div>
       </section>
     </header>
 
@@ -1995,6 +2007,7 @@
 
     const $ = (id) => document.getElementById(id);
     let scanRows = [];
+    let selectedNodeRows = [];
     let splitDrag = null;
     const stageLogs = new Map();
     const passedStages = new Set();
@@ -2067,7 +2080,7 @@
     function syncReleasePicker() {
       const custom = $("openstackReleaseChoice").value === "custom";
       $("openstackReleaseCustom").hidden = !custom;
-      $("releaseMetric").textContent = selectedOpenStackRelease();
+      updatePocSummary();
       renderStages();
     }
 
@@ -2110,12 +2123,81 @@
       passedStages.add(stageId);
       attentionStages.delete(stageId);
       renderStageTabs();
+      updatePocSummary(stageId);
     }
 
     function markStageAttention(stageId) {
       attentionStages.add(stageId);
       passedStages.delete(stageId);
       renderStageTabs();
+      updatePocSummary(stageId);
+    }
+
+    function hardwareDetails(row) {
+      const model = row.model && row.model !== "unknown" ? row.model : row.arch || "unknown";
+      const os = row.os && row.os !== "unknown" ? row.os : "OS unknown";
+      const cpu = row.cpu && row.cpu !== "unknown" ? row.cpu : `${row.cores || "?"} core ${row.arch || "ARM"}`;
+      const ram = row.ram && row.ram !== "unknown" ? row.ram : "RAM unknown";
+      const disk = row.disk && row.disk !== "unknown" ? row.disk : "disk unknown";
+      return `${model} | ${os} | CPU ${cpu} | RAM ${ram} | Disk ${disk}`;
+    }
+
+    function selectedRowsFromTable() {
+      return scanRows.filter((row, index) => {
+        const use = document.querySelector(`[data-scan-use="${index}"]`);
+        return use && use.checked;
+      }).map((row) => {
+        const originalIndex = scanRows.indexOf(row);
+        const host = document.querySelector(`[data-scan-host="${originalIndex}"]`)?.value.trim();
+        const role = document.querySelector(`[data-scan-role="${originalIndex}"]`)?.value || "compute";
+        return { ...row, hostname: host || row.hostname, role };
+      });
+    }
+
+    function detectHardwareTier(rows) {
+      if (!rows.length) return "Raspberry Pi 5 Lab";
+      const text = rows.map((row) => `${row.model} ${row.cpu} ${row.hostname}`).join(" ").toLowerCase();
+      if (/ampere|altra|ampereone|server/.test(text)) return "ARM Server PoC";
+      if (/raspberry|pi 5|cortex-a76/.test(text)) return "Raspberry Pi 5 Lab";
+      return rows.length <= 5 ? "ARM Lab PoC" : "ARM Server PoC";
+    }
+
+    function roleSummary(rows) {
+      const counts = rows.reduce((acc, row) => {
+        acc[row.role] = (acc[row.role] || 0) + 1;
+        return acc;
+      }, {});
+      return ["controller", "compute", "storage", "all"]
+        .filter((role) => counts[role])
+        .map((role) => `${counts[role]} ${role}`)
+        .join(" / ") || "roles not selected";
+    }
+
+    function updatePocSummary(lastStageId = "") {
+      const selected = selectedNodeRows.length ? selectedNodeRows : selectedRowsFromTable();
+      $("releaseMetric").textContent = selectedOpenStackRelease();
+      $("hardwareTierMetric").textContent = detectHardwareTier(selected);
+      $("hardwareDetailMetric").textContent = selected.length
+        ? selected.slice(0, 3).map((row) => `${row.hostname || row.ip}: ${hardwareDetails(row)}`).join("\n")
+        : "Scan/select nodes to populate CPU, RAM, disk, and OS.";
+      $("nodesMetric").textContent = selected.length ? `${selected.length} selected` : "0 selected";
+      $("nodesDetailMetric").textContent = selected.length ? roleSummary(selected) : "Waiting for ARM targets.";
+
+      const lastPassed = [...passedStages].at(-1);
+      const lastAttention = [...attentionStages].at(-1);
+      if (lastStageId && attentionStages.has(lastStageId)) {
+        $("statusMetric").textContent = "Needs Fix";
+        $("statusDetailMetric").textContent = `${stageNavLabel(stages.find((stage) => stage.id === lastStageId) || { id: lastStageId })} needs attention.`;
+      } else if (lastPassed) {
+        $("statusMetric").textContent = "Progressing";
+        $("statusDetailMetric").textContent = `${stageNavLabel(stages.find((stage) => stage.id === lastPassed) || { id: lastPassed })} passed.`;
+      } else if (lastAttention) {
+        $("statusMetric").textContent = "Needs Fix";
+        $("statusDetailMetric").textContent = `${stageNavLabel(stages.find((stage) => stage.id === lastAttention) || { id: lastAttention })} needs attention.`;
+      } else {
+        $("statusMetric").textContent = "Ready to Scan";
+        $("statusDetailMetric").textContent = "Start with Stage 01 discovery.";
+      }
     }
 
     function stageButtonLabel(stage) {
@@ -2271,6 +2353,8 @@
         });
         if (data.cidrs && data.cidrs.length) append("scan", `scan range(s): ${data.cidrs.join(", ")}`);
         renderScanRows(data.hosts || []);
+        selectedNodeRows = selectedRowsFromTable();
+        updatePocSummary();
         append("scan", `found ${data.hosts.length} reachable host(s)`);
         if (data.hosts.length) markStagePassed("scan");
         else markStageAttention("scan");
@@ -2296,6 +2380,12 @@
         return;
       }
       $("nodes").value = lines.join("\n");
+      selectedNodeRows = lines.map((line) => {
+        const [ip, hostname, role] = line.split(/\s+/);
+        const row = scanRows.find((item) => item.ip === ip) || { ip, hostname, role };
+        return { ...row, hostname, role };
+      });
+      updatePocSummary();
       append("scan", `selected ${lines.length} ARM endpoint(s)`);
       setBusy(true);
       try {
@@ -2339,7 +2429,7 @@
     }
 
     function renderStages() {
-      $("releaseMetric").textContent = selectedOpenStackRelease();
+      updatePocSummary();
       renderStageTabs();
       $("stages").innerHTML = "";
       stages.forEach((stage, index) => {
@@ -2381,6 +2471,14 @@
 
     $("scanLan").addEventListener("click", scanLan);
     $("useSelected").addEventListener("click", useSelectedRows);
+    $("scanResults").addEventListener("input", () => {
+      selectedNodeRows = selectedRowsFromTable();
+      updatePocSummary();
+    });
+    $("scanResults").addEventListener("change", () => {
+      selectedNodeRows = selectedRowsFromTable();
+      updatePocSummary();
+    });
     document.querySelectorAll("input").forEach((input) => input.addEventListener("input", renderStages));
     $("openstackReleaseChoice").addEventListener("change", syncReleasePicker);
     $("openstackReleaseCustom").addEventListener("input", renderStages);

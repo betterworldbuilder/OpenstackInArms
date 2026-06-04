@@ -243,7 +243,18 @@ class Handler(BaseHTTPRequestHandler):
                     "-o",
                     "StrictHostKeyChecking=accept-new",
                     f"{ssh_user}@{ip}",
-                    "printf '%s %s' \"$(hostname 2>/dev/null || echo unknown)\" \"$(uname -m 2>/dev/null || echo unknown)\"",
+                    "\n".join(
+                        [
+                            "printf 'HOSTNAME=%s\\n' \"$(hostname 2>/dev/null || echo unknown)\"",
+                            "printf 'ARCH=%s\\n' \"$(uname -m 2>/dev/null || echo unknown)\"",
+                            "if [ -r /etc/os-release ]; then . /etc/os-release; printf 'OS=%s\\n' \"${PRETTY_NAME:-unknown}\"; else printf 'OS=unknown\\n'; fi",
+                            "if [ -r /proc/device-tree/model ]; then tr -d '\\0' </proc/device-tree/model | sed 's/^/MODEL=/'; printf '\\n'; else printf 'MODEL=unknown\\n'; fi",
+                            "printf 'CPU=%s\\n' \"$(lscpu 2>/dev/null | awk -F: '/Model name|BIOS Model name|Hardware/ {gsub(/^[ \\t]+/, \"\", $2); print $2; exit}' || true)\"",
+                            "printf 'CORES=%s\\n' \"$(nproc 2>/dev/null || echo unknown)\"",
+                            "printf 'RAM=%sGB\\n' \"$(awk '/MemTotal/ {printf \"%.1f\", $2/1024/1024}' /proc/meminfo 2>/dev/null || echo unknown)\"",
+                            "printf 'DISK=%s\\n' \"$(lsblk -dn -o SIZE,TYPE 2>/dev/null | awk '$2==\"disk\" {print $1}' | paste -sd+ - || echo unknown)\"",
+                        ]
+                    ),
                 ],
                 text=True,
                 capture_output=True,
@@ -251,13 +262,28 @@ class Handler(BaseHTTPRequestHandler):
             )
             hostname = "unknown"
             arch = "unknown"
+            os_name = "unknown"
+            model = "unknown"
+            cpu = "unknown"
+            cores = "unknown"
+            ram = "unknown"
+            disk = "unknown"
             ssh_ok = ssh.returncode == 0
             if ssh_ok:
-                parts = ssh.stdout.strip().split()
-                if parts:
-                    hostname = parts[0]
-                if len(parts) > 1:
-                    arch = parts[1]
+                facts = {}
+                for line in ssh.stdout.splitlines():
+                    if "=" not in line:
+                        continue
+                    key, value = line.split("=", 1)
+                    facts[key.strip()] = value.strip() or "unknown"
+                hostname = facts.get("HOSTNAME", hostname)
+                arch = facts.get("ARCH", arch)
+                os_name = facts.get("OS", os_name)
+                model = facts.get("MODEL", model)
+                cpu = facts.get("CPU", cpu) or "unknown"
+                cores = facts.get("CORES", cores)
+                ram = facts.get("RAM", ram)
+                disk = facts.get("DISK", disk) or "unknown"
             if hostname == "unknown":
                 hostname = resolve_endpoint_name(ip)
             arm = arch in {"aarch64", "arm64", "armv7l"}
@@ -265,6 +291,12 @@ class Handler(BaseHTTPRequestHandler):
                 "ip": ip,
                 "hostname": hostname,
                 "arch": arch,
+                "os": os_name,
+                "model": model,
+                "cpu": cpu,
+                "cores": cores,
+                "ram": ram,
+                "disk": disk,
                 "ssh": ssh_ok,
                 "arm": arm,
             }
