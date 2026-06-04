@@ -13,6 +13,30 @@ The goal is to validate:
 
 This is not a production SLA deployment.
 
+## Why / What / So What / What Now
+
+### Why
+
+ARM servers are becoming practical for edge, lab, and low-power cloud experiments. This PoC answers one simple question: can we stand up a small OpenStack environment on ARM64 and boot ARM64 cloud workloads safely?
+
+### What
+
+This repo provides scripts and documentation for a Kolla-Ansible based ARM OpenStack PoC. It targets Raspberry Pi 5 for low-cost lab testing and server-grade ARM64 hardware for more serious validation.
+
+### So What
+
+The value is learning the real limits before investing in a larger ARM cloud design:
+
+- Validate ARM64 OpenStack services.
+- Boot ARM64 Linux cloud images.
+- Test basic Neutron networking.
+- Use serial console when noVNC is unreliable.
+- Avoid mixing x86 images with ARM compute nodes.
+
+### What Now
+
+Start with the 2-node Raspberry Pi PoC below. If the basics work, move to 3+ nodes or ARM server hardware, then consider phase 2 items such as Ceph, Octavia, and stronger networking.
+
 ## Recommended Release
 
 Default:
@@ -59,6 +83,65 @@ Example:
 192.168.10.11 pi-os-ctrl controller
 192.168.10.12 pi-os-cmp1 compute
 192.168.10.13 pi-os-cmp2 compute
+```
+
+## Example: 2 Raspberry Pi 5 PoC
+
+This is the smallest useful lab shape:
+
+| Node | Example IP | Role | Purpose |
+|---|---|---|---|
+| Pi 1 | 192.168.10.11 | controller | API, scheduler, network, Horizon, control services |
+| Pi 2 | 192.168.10.12 | compute | Nova compute, ARM64 test VM |
+
+Use this for a first demo, not production. Both Pis should run Ubuntu Server ARM64, use wired Ethernet, and preferably boot from NVMe or USB SSD rather than SD card.
+
+Create `nodes.txt`:
+
+```text
+192.168.10.11 pi-os-ctrl controller
+192.168.10.12 pi-os-cmp1 compute
+```
+
+Run the flow:
+
+```bash
+cd /home/dzoan/OSPC2FLEX/Openstack-SisandBrotherInArms
+
+NODE_LIST=nodes.txt SSH_USER=ubuntu scripts/00_check_prereqs.sh
+NODE_LIST=nodes.txt SSH_USER=ubuntu scripts/01_bootstrap_arm_nodes.sh
+
+ssh ubuntu@192.168.10.11 sudo reboot
+ssh ubuntu@192.168.10.12 sudo reboot
+
+python3 scripts/02_generate_inventory.py \
+  --nodes nodes.txt \
+  --output multinode-arm.ini \
+  --ansible-user ubuntu
+
+OPENSTACK_RELEASE=2025.1 \
+VIP=192.168.10.250 \
+EXT_IFACE=eth0 \
+INVENTORY=multinode-arm.ini \
+scripts/03_deploy_kolla_arm.sh
+```
+
+Validate with an ARM64 image:
+
+```bash
+OPENRC=/etc/kolla/admin-openrc.sh \
+CIDR=192.168.100.0/24 \
+GW=192.168.100.1 \
+POOL_START=192.168.100.100 \
+POOL_END=192.168.100.200 \
+scripts/04_validate_arm_openstack.sh
+```
+
+Expected proof:
+
+```bash
+openstack server list
+openstack console url show arm-test-01 --serial
 ```
 
 ## Step 2: Check Prerequisites
