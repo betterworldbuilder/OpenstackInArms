@@ -1,6 +1,13 @@
 # ARM OpenStack PoC
 
-This folder contains a small ARM OpenStack PoC deployment bundle for Raspberry Pi 5 and ARM64 server hardware.
+OpenstackInArms is a small mission-control style toolkit for proving that OpenStack can run on ARM64 lab hardware.
+
+It gives you two ways to operate:
+
+- **Mission Control Web UI**: a simple neon cockpit for editing node targets and running the PoC stages.
+- **CLI scripts**: direct Bash/Python scripts for repeatable terminal-driven deployment.
+
+The target hardware is Raspberry Pi 5 for low-cost lab/demo work and server-grade ARM64 hardware for serious validation.
 
 The goal is to validate:
 
@@ -12,6 +19,34 @@ The goal is to validate:
 - Serial console as the noVNC workaround
 
 This is not a production SLA deployment.
+
+## Launch Mission Control
+
+Start the local web UI from the repo root:
+
+```bash
+cd /home/dzoan/OSPC2FLEX/Openstack-SisandBrotherInArms
+python3 scripts/06_mission_control_server.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:8787
+```
+
+The UI is localhost-only and runs an allowlist of PoC steps:
+
+| Stage | Button | What It Runs |
+|---|---|---|
+| Prereq Scan | Run | `scripts/00_check_prereqs.sh` |
+| Bootstrap ARM Nodes | Run | `scripts/01_bootstrap_arm_nodes.sh` |
+| Generate Inventory | Run | `scripts/02_generate_inventory.py` |
+| Deploy Kolla ARM | Deploy | `scripts/03_deploy_kolla_arm.sh` |
+| Validate Cloud | Run | `scripts/04_validate_arm_openstack.sh` |
+| Build ARM64 Images | Run | `scripts/05_build_arm64_kolla_images.sh` |
+
+Use the UI for demos and guided operation. Use the CLI commands below when you want exact terminal control.
 
 ## Why / What / So What / What Now
 
@@ -35,7 +70,7 @@ The value is learning the real limits before investing in a larger ARM cloud des
 
 ### What Now
 
-Start with the 2-node Raspberry Pi PoC below. If the basics work, move to 3+ nodes or ARM server hardware, then consider phase 2 items such as Ceph, Octavia, and stronger networking.
+Start with the Mission Control UI and the 2-node Raspberry Pi PoC below. If the basics work, move to 3+ nodes or ARM server hardware, then consider phase 2 items such as Ceph, Octavia, and stronger networking.
 
 ## Recommended Release
 
@@ -52,6 +87,7 @@ Use OpenStack 2025.1 as the default PoC baseline. The deployment script installs
 ```text
 
 ├── README.md
+├── mission-control.html
 ├── nodes.example.txt
 ├── scripts/
 │   ├── 00_check_prereqs.sh
@@ -60,6 +96,7 @@ Use OpenStack 2025.1 as the default PoC baseline. The deployment script installs
 │   ├── 03_deploy_kolla_arm.sh
 │   ├── 04_validate_arm_openstack.sh
 │   ├── 05_build_arm64_kolla_images.sh
+│   ├── 06_mission_control_server.py
 │   └── lib/common.sh
 └── docs/
     ├── hardware_bom.md
@@ -68,6 +105,8 @@ Use OpenStack 2025.1 as the default PoC baseline. The deployment script installs
 ```
 
 ## Step 1: Create Node File
+
+You can create `nodes.txt` in Mission Control with the **Save Nodes** button, or create it manually:
 
 Copy the example:
 
@@ -279,5 +318,6 @@ Run from the repository root:
 ```bash
 find scripts -type f -name "*.sh" -print0 | xargs -0 -I{} bash -n {}
 python3 -m py_compile scripts/02_generate_inventory.py
+python3 -m py_compile scripts/06_mission_control_server.py
 chmod +x scripts/*.sh
 ```
