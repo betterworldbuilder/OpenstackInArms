@@ -1261,6 +1261,18 @@
       border-color: #7cf6ff !important;
     }
 
+    .stage-tab.passed {
+      border-color: var(--green) !important;
+      background: linear-gradient(180deg, rgba(18, 112, 28, 0.96), rgba(5, 45, 18, 0.98)) !important;
+      color: #ecffef !important;
+      text-shadow: 0 0 8px #ffffff, 0 0 14px var(--green) !important;
+      box-shadow: inset 0 0 18px rgba(57, 255, 20, 0.22), 0 0 16px rgba(57, 255, 20, 0.46) !important;
+    }
+
+    .stage-tab.passed span {
+      color: #baffbd;
+    }
+
     .layout {
       display: grid !important;
       grid-template-columns: minmax(360px, var(--sidebar-width, 470px)) 12px minmax(0, 1fr) !important;
@@ -1580,17 +1592,7 @@
       </section>
     </header>
 
-    <nav class="stage-tabs" aria-label="OpenARMS stages">
-      <button type="button" class="stage-tab active">Stage 0<span>Where are my Arms?</span></button>
-      <button type="button" class="stage-tab">Stage 1<span>Prereq Scan</span></button>
-      <button type="button" class="stage-tab">Stage 2<span>Bootstrap</span></button>
-      <button type="button" class="stage-tab">Stage 3<span>Inventory</span></button>
-      <button type="button" class="stage-tab">Stage 4<span>Deploy</span></button>
-      <button type="button" class="stage-tab">Stage 5<span>Validate</span></button>
-      <button type="button" class="stage-tab">Stage 6<span>Build Images</span></button>
-      <button type="button" class="stage-tab">Stage 7<span>Result Stage</span></button>
-      <button type="button" class="stage-tab">Stage 8<span>Fix & Retest</span></button>
-    </nav>
+    <nav class="stage-tabs" id="stageTabs" aria-label="OpenARMS stages"></nav>
 
     <section class="layout">
       <aside class="panel">
@@ -1724,6 +1726,8 @@
     let scanRows = [];
     let splitDrag = null;
     const stageLogs = new Map();
+    const passedStages = new Set();
+    const attentionStages = new Set();
 
     function setSidebarWidth(width) {
       const max = Math.max(520, Math.min(window.innerWidth - 520, 880));
@@ -1831,6 +1835,18 @@
       document.querySelectorAll("button").forEach((button) => button.disabled = busy);
     }
 
+    function markStagePassed(stageId) {
+      passedStages.add(stageId);
+      attentionStages.delete(stageId);
+      renderStageTabs();
+    }
+
+    function markStageAttention(stageId) {
+      attentionStages.add(stageId);
+      passedStages.delete(stageId);
+      renderStageTabs();
+    }
+
     function stageButtonLabel(stage) {
       if (stage.id === "scan") return "Scan";
       if (stage.id === "result") return "Analyze";
@@ -1839,7 +1855,10 @@
       return "Run";
     }
 
-    function stageStatus(log) {
+    function stageStatus(stage) {
+      const log = stageLogs.get(stage.id) || "";
+      if (passedStages.has(stage.id)) return "works";
+      if (attentionStages.has(stage.id)) return "needs attention";
       if (!log.trim()) return "not run";
       if (/exit code:\s*0\b/i.test(log)) return "works";
       if (/(ERROR|FAILED|fatal:|Traceback|No reachable|Permission denied|timed out|exit code:\s*[1-9])/i.test(log)) return "needs attention";
@@ -1856,8 +1875,7 @@
     function analyzeResults() {
       const sourceStages = stages.filter((stage) => !["result", "fix"].includes(stage.id));
       const summary = sourceStages.map((stage) => {
-        const log = stageLogs.get(stage.id) || "";
-        return `${stage.title}: ${stageStatus(log)}`;
+        return `${stage.title}: ${stageStatus(stage)}`;
       });
       const errors = sourceStages.flatMap((stage) => importantLines(stageLogs.get(stage.id) || "").map((line) => `[${stage.title}] ${line}`));
       const output = [
@@ -1873,6 +1891,7 @@
         errors.length ? "- Open Hardware & Software Fix for suggested changes." : "- If all required stages show works, continue validation or document the PoC result."
       ].join("\n");
       stageLogs.set("result", output);
+      markStagePassed("result");
       renderStages();
     }
 
@@ -1902,6 +1921,7 @@
         "- If Stage 1 passes, continue Stage 2 onward."
       ].join("\n");
       stageLogs.set("fix", output);
+      markStagePassed("fix");
       renderStages();
     }
 
@@ -1936,8 +1956,11 @@
         const data = await api("/api/run", { step: stage.id, env: values() });
         append(stage.id, data.output || "(no output)");
         append(stage.id, `exit code: ${data.code}`);
+        if (data.code === 0) markStagePassed(stage.id);
+        else markStageAttention(stage.id);
       } catch (error) {
         append(stage.id, `ERROR: ${error.message}`);
+        markStageAttention(stage.id);
       } finally {
         setBusy(false);
       }
@@ -1978,8 +2001,11 @@
         if (data.cidrs && data.cidrs.length) append("scan", `scan range(s): ${data.cidrs.join(", ")}`);
         renderScanRows(data.hosts || []);
         append("scan", `found ${data.hosts.length} reachable host(s)`);
+        if (data.hosts.length) markStagePassed("scan");
+        else markStageAttention("scan");
       } catch (error) {
         append("scan", `ERROR: ${error.message}`);
+        markStageAttention("scan");
       } finally {
         setBusy(false);
       }
@@ -2004,19 +2030,51 @@
       try {
         const data = await api("/api/save-nodes", { content: $("nodes").value });
         append("scan", data.output);
+        markStagePassed("scan");
       } catch (error) {
         append("scan", `ERROR: ${error.message}`);
+        markStageAttention("scan");
       } finally {
         setBusy(false);
       }
     }
 
+    function stageNavLabel(stage) {
+      return {
+        scan: "Where are my Arms?",
+        prereqs: "Prereq Scan",
+        bootstrap: "Bootstrap",
+        inventory: "Inventory",
+        deploy: "Deploy",
+        validate: "Validate",
+        images: "Build Images",
+        result: "Result Stage",
+        fix: "Fix & Retest"
+      }[stage.id] || stage.title;
+    }
+
+    function renderStageTabs() {
+      const top = $("stageTabs");
+      if (!top) return;
+      top.innerHTML = stages.map((stage, index) => {
+        const classes = ["stage-tab"];
+        if (passedStages.has(stage.id)) classes.push("passed");
+        return `
+          <button type="button" class="${classes.join(" ")}" data-jump="${stage.id}">
+            Stage ${String(index + 1).padStart(2, "0")}<span>${stageNavLabel(stage)}</span>
+          </button>
+        `;
+      }).join("");
+    }
+
     function renderStages() {
       $("releaseMetric").textContent = selectedOpenStackRelease();
+      renderStageTabs();
       $("stages").innerHTML = "";
       stages.forEach((stage, index) => {
         const node = document.createElement("article");
         node.className = "stage";
+        node.id = `stage-${stage.id}`;
         node.innerHTML = `
           <div class="stage-index">${String(index + 1).padStart(2, "0")}</div>
           <div>
@@ -2036,9 +2094,13 @@
     }
 
     document.addEventListener("click", async (event) => {
-      const runId = event.target.dataset.run;
-      const copyId = event.target.dataset.copy;
+      const action = event.target.closest("button");
+      if (!action) return;
+      const runId = action.dataset.run;
+      const copyId = action.dataset.copy;
+      const jumpId = action.dataset.jump;
       if (runId) runStage(stages.find((stage) => stage.id === runId));
+      if (jumpId) $(`stage-${jumpId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
       if (copyId) {
         const stage = stages.find((item) => item.id === copyId);
         await navigator.clipboard.writeText(commandText(stage));
