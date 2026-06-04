@@ -1,10 +1,10 @@
 # ARM OpenStack PoC
 
-OpenstackInArms is a small mission-control style toolkit for proving that OpenStack can run on ARM64 lab hardware.
+**OPENSTACKK BROTHERS and SISTERS in ARM** is a small mission-control style toolkit for proving that OpenStack can run on ARM64 lab hardware.
 
 It gives you two ways to operate:
 
-- **Mission Control Web UI**: a simple neon cockpit for editing node targets and running the PoC stages.
+- **Mission Control Web UI**: a simple neon cockpit with the `OPENSTACKK BROTHERS and SISTERS in ARM` title bar, node editing, and buttons for each PoC stage.
 - **CLI scripts**: direct Bash/Python scripts for repeatable terminal-driven deployment.
 
 The target hardware is Raspberry Pi 5 for low-cost lab/demo work and server-grade ARM64 hardware for serious validation.

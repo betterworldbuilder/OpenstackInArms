@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OpenstackInArms Mission Control</title>
+  <title>OPENSTACKK BROTHERS and SISTERS in ARM</title>
   <style>
     :root {
       color-scheme: dark;
@@ -74,6 +74,22 @@
       max-width: 820px;
       font-size: 1rem;
       line-height: 1.55;
+    }
+
+    .title-bar {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      margin: 0 0 14px;
+      padding: 0 13px;
+      border: 1px solid rgba(255, 79, 216, 0.46);
+      border-radius: 7px;
+      color: var(--cyan);
+      background: rgba(2, 6, 14, 0.7);
+      box-shadow: 0 0 22px rgba(255, 79, 216, 0.2), inset 0 0 18px rgba(87, 230, 255, 0.08);
+      font-size: 0.78rem;
+      font-weight: 900;
+      text-transform: uppercase;
     }
 
     .status-strip {
@@ -289,8 +305,8 @@
   <main>
     <header>
       <section>
-        <div class="pill">ARM64 LAB CONTROL</div>
-        <h1>OpenstackInArms Mission Control</h1>
+        <div class="title-bar">OPENSTACKK BROTHERS and SISTERS in ARM</div>
+        <h1>Mission Control</h1>
         <p class="subtitle">A clean cockpit for the Raspberry Pi / ARM64 OpenStack PoC: edit node targets, generate inventory, launch controlled steps, and keep the terminal output in one place.</p>
       </section>
       <section class="status-strip" aria-label="PoC status">
