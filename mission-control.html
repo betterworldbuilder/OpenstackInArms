@@ -918,6 +918,7 @@
       --cyan-soft: rgba(0, 229, 255, 0.22);
       --green: #39ff14;
       --green-soft: rgba(57, 255, 20, 0.16);
+      --neon-pink: #ff4fd8;
       --hot: #ff3b73;
       --amber: #ffb020;
       --text-bright: #f4fbff;
@@ -944,15 +945,17 @@
           0 0 7px #ffffff,
           0 0 16px var(--cyan),
           0 0 34px var(--cyan),
-          0 0 52px rgba(57, 255, 20, 0.44);
+          0 0 52px rgba(57, 255, 20, 0.52),
+          0 0 78px rgba(255, 79, 216, 0.28);
       }
       10%, 12% {
         opacity: 0.72;
-        color: #c9fbff;
+        color: #f6ddff;
         text-shadow:
           0 0 3px #ffffff,
           0 0 9px var(--cyan),
-          0 0 18px rgba(57, 255, 20, 0.42);
+          0 0 18px rgba(57, 255, 20, 0.42),
+          0 0 30px var(--neon-pink);
       }
       55% {
         color: #eaffff;
@@ -960,7 +963,8 @@
           0 0 10px #ffffff,
           0 0 24px #73f6ff,
           0 0 48px var(--cyan),
-          0 0 70px rgba(57, 255, 20, 0.5);
+          0 0 70px rgba(57, 255, 20, 0.72),
+          0 0 96px rgba(255, 79, 216, 0.3);
       }
     }
 
@@ -972,21 +976,24 @@
           0 0 8px #ffffff,
           0 0 18px var(--cyan),
           0 0 38px var(--cyan),
-          0 0 58px rgba(57, 255, 20, 0.48);
+          0 0 58px rgba(57, 255, 20, 0.48),
+          0 0 78px rgba(255, 79, 216, 0.26);
       }
       18%, 20%, 44% {
         opacity: 0.45;
-        color: #8dfaff;
+        color: #ffd6fb;
         text-shadow:
           0 0 5px var(--cyan),
-          0 0 14px rgba(57, 255, 20, 0.38);
+          0 0 14px rgba(57, 255, 20, 0.38),
+          0 0 24px var(--neon-pink);
       }
       72% {
         color: var(--green);
         text-shadow:
           0 0 8px #ffffff,
           0 0 18px var(--green),
-          0 0 38px var(--cyan);
+          0 0 38px var(--cyan),
+          0 0 60px rgba(255, 79, 216, 0.22);
       }
     }
 
@@ -1054,7 +1061,9 @@
       padding: 18px 40px !important;
       color: #fff !important;
       background:
-        linear-gradient(90deg, rgba(57, 255, 20, 0.08), transparent 18%, transparent 82%, rgba(0, 229, 255, 0.12)),
+        radial-gradient(circle at 30% 48%, rgba(57, 255, 20, 0.24), transparent 32%),
+        radial-gradient(circle at 72% 52%, rgba(255, 79, 216, 0.12), transparent 26%),
+        linear-gradient(90deg, rgba(57, 255, 20, 0.11), transparent 18%, transparent 82%, rgba(0, 229, 255, 0.16)),
         rgba(0, 12, 15, 0.94) !important;
       border: 2px solid var(--cyan) !important;
       border-radius: 14px !important;
@@ -1073,6 +1082,7 @@
 
     .brand-title {
       animation: openarmsLetterBlink 4.8s infinite steps(1, end);
+      filter: drop-shadow(0 0 18px rgba(57, 255, 20, 0.42));
     }
 
     .open-title {
@@ -1084,13 +1094,14 @@
       font-style: italic;
       letter-spacing: 0.16em;
       animation: openarmsOpenBlink 3.2s infinite steps(1, end);
+      filter: drop-shadow(0 0 16px rgba(255, 79, 216, 0.22));
     }
 
     .open-title::before {
       content: "-";
       color: #ffffff;
       font-style: normal;
-      text-shadow: 0 0 8px #ffffff, 0 0 18px var(--cyan);
+      text-shadow: 0 0 8px #ffffff, 0 0 18px var(--cyan), 0 0 28px var(--neon-pink);
     }
 
     .open-title span {
