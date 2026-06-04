@@ -936,6 +936,60 @@
       }
     }
 
+    @keyframes openarmsLetterBlink {
+      0%, 8%, 14%, 100% {
+        opacity: 1;
+        color: #ffffff;
+        text-shadow:
+          0 0 7px #ffffff,
+          0 0 16px var(--cyan),
+          0 0 34px var(--cyan),
+          0 0 52px rgba(57, 255, 20, 0.44);
+      }
+      10%, 12% {
+        opacity: 0.72;
+        color: #c9fbff;
+        text-shadow:
+          0 0 3px #ffffff,
+          0 0 9px var(--cyan),
+          0 0 18px rgba(57, 255, 20, 0.42);
+      }
+      55% {
+        color: #eaffff;
+        text-shadow:
+          0 0 10px #ffffff,
+          0 0 24px #73f6ff,
+          0 0 48px var(--cyan),
+          0 0 70px rgba(57, 255, 20, 0.5);
+      }
+    }
+
+    @keyframes openarmsOpenBlink {
+      0%, 16%, 22%, 42%, 100% {
+        opacity: 1;
+        color: var(--cyan);
+        text-shadow:
+          0 0 8px #ffffff,
+          0 0 18px var(--cyan),
+          0 0 38px var(--cyan),
+          0 0 58px rgba(57, 255, 20, 0.48);
+      }
+      18%, 20%, 44% {
+        opacity: 0.45;
+        color: #8dfaff;
+        text-shadow:
+          0 0 5px var(--cyan),
+          0 0 14px rgba(57, 255, 20, 0.38);
+      }
+      72% {
+        color: var(--green);
+        text-shadow:
+          0 0 8px #ffffff,
+          0 0 18px var(--green),
+          0 0 38px var(--cyan);
+      }
+    }
+
     html,
     body {
       background: #000 !important;
@@ -990,32 +1044,58 @@
     }
 
     .neon-title {
-      display: inline-flex !important;
+      display: grid !important;
+      grid-template-columns: 1fr auto;
       align-items: center;
-      justify-content: center;
-      gap: 0.45em;
-      width: min(1360px, calc(100vw - 48px));
+      justify-content: space-between;
+      gap: clamp(1rem, 3vw, 3rem);
+      width: min(1020px, calc(100vw - 48px));
       margin: 0 auto 8px !important;
-      padding: 18px 34px !important;
+      padding: 18px 40px !important;
       color: #fff !important;
-      background: rgba(0, 14, 18, 0.9) !important;
+      background:
+        linear-gradient(90deg, rgba(57, 255, 20, 0.08), transparent 18%, transparent 82%, rgba(0, 229, 255, 0.12)),
+        rgba(0, 12, 15, 0.94) !important;
       border: 2px solid var(--cyan) !important;
-      border-radius: 18px !important;
+      border-radius: 14px !important;
       font-family: 'JetBrains Mono', 'Space Grotesk', monospace !important;
-      font-size: clamp(1.55rem, 3vw, 3rem) !important;
+      font-size: clamp(1.7rem, 3vw, 3.1rem) !important;
       font-weight: 900 !important;
-      letter-spacing: 0.14em !important;
+      letter-spacing: 0.18em !important;
       line-height: 1.05 !important;
       text-transform: uppercase;
       animation: openarmsPulse 3.8s infinite linear !important;
     }
 
     .neon-title::after {
-      content: " - OPEN 24/24";
+      content: none;
+    }
+
+    .brand-title {
+      animation: openarmsLetterBlink 4.8s infinite steps(1, end);
+    }
+
+    .open-title {
+      display: grid;
+      grid-template-columns: auto auto;
+      align-items: center;
+      gap: clamp(0.75rem, 2vw, 1.5rem);
       color: var(--cyan);
       font-style: italic;
       letter-spacing: 0.16em;
-      text-shadow: 0 0 18px var(--cyan);
+      animation: openarmsOpenBlink 3.2s infinite steps(1, end);
+    }
+
+    .open-title::before {
+      content: "-";
+      color: #ffffff;
+      font-style: normal;
+      text-shadow: 0 0 8px #ffffff, 0 0 18px var(--cyan);
+    }
+
+    .open-title span {
+      display: inline-block;
+      line-height: 0.96;
     }
 
     .ticker {
@@ -1294,11 +1374,15 @@
 
     @media (max-width: 980px) {
       .neon-title {
-        flex-direction: column;
+        grid-template-columns: 1fr;
         gap: 0.2rem;
         width: calc(100vw - 24px);
         padding: 14px 12px !important;
         letter-spacing: 0.08em !important;
+      }
+
+      .open-title {
+        justify-self: center;
       }
 
       .stage-tabs,
@@ -1326,7 +1410,10 @@
     <header class="hero">
       <section>
         <div class="title-bar">OPENARMS</div>
-        <h1 class="neon-title">OpenARMS Mission Control</h1>
+        <h1 class="neon-title">
+          <span class="brand-title">OPENARMS MISSION CONTROL</span>
+          <span class="open-title"><span>OPEN<br>24/24</span></span>
+        </h1>
         <div class="ticker" aria-label="Mission subtitle">
           <span>this place if for the Crazy ones, the misfitted, the Brothers and Sisters in Arms who does not accept things as it is but who think Why not ?</span>
         </div>
