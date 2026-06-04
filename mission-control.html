@@ -1162,11 +1162,18 @@
     }
 
     .subtitle {
-      max-width: 980px !important;
-      margin: 10px auto 0 !important;
-      color: #c7def0 !important;
-      font-size: 1rem !important;
-      line-height: 1.55 !important;
+      max-width: 1320px !important;
+      margin: 18px auto 0 !important;
+      color: #ffffff !important;
+      font-size: clamp(2rem, 3vw, 3rem) !important;
+      font-weight: 900 !important;
+      line-height: 1.18 !important;
+      letter-spacing: 0.02em;
+      text-shadow:
+        0 0 8px #ffffff,
+        0 0 18px #ffffff,
+        0 0 34px var(--cyan),
+        0 0 52px rgba(57, 255, 20, 0.34);
     }
 
     .builder-credit {
