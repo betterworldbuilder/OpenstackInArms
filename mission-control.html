@@ -1164,13 +1164,16 @@
     .subtitle {
       max-width: 1180px !important;
       margin: 12px auto 0 !important;
-      color: #ffffff !important;
+      color: #f8fbff !important;
       font-family: 'Space Grotesk', system-ui, sans-serif !important;
       font-size: 1.5rem !important;
       font-weight: 500 !important;
       line-height: 1.55 !important;
       letter-spacing: 0;
-      text-shadow: none;
+      text-shadow:
+        0 0 8px #ffffff,
+        0 0 16px var(--cyan),
+        0 0 22px var(--neon-pink);
     }
 
     .builder-credit {
@@ -1483,6 +1486,20 @@
       border-color: var(--cyan) !important;
     }
 
+    .checkbox-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      color: #d7e9f7 !important;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .checkbox-line input {
+      width: auto;
+    }
+
     button {
       border: 1px solid #7cf6ff !important;
       border-radius: 6px !important;
@@ -1714,7 +1731,7 @@
             <div class="howto-grid" aria-label="How to use OpenARMS">
               <div class="howto-step"><strong>01 Discover</strong>Scan the laptop LAN, pick the ARM nodes, assign controller/compute/storage roles, then use the selected nodes.</div>
               <div class="howto-step"><strong>02 Prepare</strong>Run prereq scan, bootstrap nodes, and generate the Kolla-Ansible inventory from the selected targets.</div>
-              <div class="howto-step"><strong>03 Deploy</strong>Choose the OpenStack release, VIP, external interface, then deploy Kolla ARM when the lab is ready.</div>
+              <div class="howto-step"><strong>03 Deploy</strong>Choose Kolla-Ansible or Genestack, set the OpenStack release, VIP, and external interface, then deploy when the lab is ready.</div>
               <div class="howto-step"><strong>04 Validate</strong>Run validation to test ARM64 image boot, Neutron networking, floating IPs, Cinder/LVM, and serial console access.</div>
               <div class="howto-step"><strong>05 Improve</strong>Use Result Stage to read logs, Hardware & Software Fix to suggest changes, then retest from Stage 01.</div>
             </div>
@@ -1932,6 +1949,20 @@
         <input id="openstackReleaseCustom" value="2025.1" hidden>
         <p class="hint">Release is passed as <code>OPENSTACK_RELEASE</code> to Kolla-Ansible.</p>
 
+        <label for="deployTool">Deployment Tool</label>
+        <select id="deployTool">
+          <option value="kolla" selected>Kolla-Ansible</option>
+          <option value="genestack">Genestack</option>
+        </select>
+        <p class="hint">Genestack uses Kubernetes, OpenStack-Helm, Kustomize, and Helm. Keep Kolla as the simple default PoC path.</p>
+
+        <label for="genestackMode">Genestack Mode</label>
+        <select id="genestackMode">
+          <option value="aio" selected>aio test cloud</option>
+          <option value="base">base HA cloud</option>
+        </select>
+        <label class="checkbox-line"><input id="genestackConfirm" type="checkbox"> Allow Genestack bootstrap/deploy action</label>
+
         <label for="vip">VIP</label>
         <input id="vip" value="192.168.10.250">
 
@@ -1987,9 +2018,9 @@
       },
       {
         id: "deploy",
-        title: "Deploy Kolla ARM",
-        body: "Run Kolla bootstrap, prechecks, deploy, and post-deploy. This is the big red switch.",
-        command: "OPENSTACK_RELEASE=$OPENSTACK_RELEASE VIP=$VIP EXT_IFACE=$EXT_IFACE INVENTORY=multinode-arm.ini scripts/03_deploy_kolla_arm.sh",
+        title: "Deploy OpenStack ARM",
+        body: "Deploy with the selected tool. Kolla-Ansible is direct; Genestack is Kubernetes/OpenStack-Helm based and starts guarded.",
+        command: "$DEPLOY_COMMAND",
         danger: true
       },
       {
@@ -2075,6 +2106,9 @@
         LAN_CIDR: $("lanCidr").value.trim(),
         SSH_USER: $("sshUser").value.trim(),
         OPENSTACK_RELEASE: selectedOpenStackRelease(),
+        DEPLOY_TOOL: $("deployTool").value,
+        GENESTACK_MODE: $("genestackMode").value,
+        GENESTACK_CONFIRM_DEPLOY: $("genestackConfirm").checked ? "yes" : "no",
         VIP: $("vip").value.trim(),
         EXT_IFACE: $("extIface").value.trim(),
         CIDR: $("cidr").value.trim(),
@@ -2108,10 +2142,19 @@
     }
 
     function commandText(stage) {
+      if (stage.id === "deploy") return deployCommand();
       return Object.entries(values()).reduce(
         (cmd, [key, value]) => cmd.replaceAll(`$${key}`, value),
         stage.command
       );
+    }
+
+    function deployCommand() {
+      const env = values();
+      if (env.DEPLOY_TOOL === "genestack") {
+        return `DEPLOY_TOOL=genestack GENESTACK_MODE=${env.GENESTACK_MODE} GENESTACK_CONFIRM_DEPLOY=${env.GENESTACK_CONFIRM_DEPLOY} INVENTORY=multinode-arm.ini scripts/03_deploy_genestack_arm.sh`;
+      }
+      return `OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} INVENTORY=multinode-arm.ini scripts/03_deploy_kolla_arm.sh`;
     }
 
     function monitor(stageId) {
@@ -2189,6 +2232,7 @@
     function updatePocSummary(lastStageId = "") {
       const selected = selectedNodeRows.length ? selectedNodeRows : selectedRowsFromTable();
       $("releaseMetric").textContent = selectedOpenStackRelease();
+      $("releaseDetailMetric").textContent = $("deployTool").value === "genestack" ? "Genestack ARM PoC" : "Kolla-Ansible ARM PoC";
       $("hardwareTierMetric").textContent = detectHardwareTier(selected);
       $("hardwareDetailMetric").textContent = selected.length
         ? "Active ARM test hardware"
@@ -2497,6 +2541,9 @@
     document.querySelectorAll("input").forEach((input) => input.addEventListener("input", renderStages));
     $("openstackReleaseChoice").addEventListener("change", syncReleasePicker);
     $("openstackReleaseCustom").addEventListener("input", renderStages);
+    $("deployTool").addEventListener("change", renderStages);
+    $("genestackMode").addEventListener("change", renderStages);
+    $("genestackConfirm").addEventListener("change", renderStages);
     initSplitter();
     renderStages();
 
