@@ -1561,6 +1561,41 @@
       color: var(--text-dim) !important;
     }
 
+    .stage-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(170px, 1fr));
+      gap: 10px;
+      margin: 10px 0;
+      padding: 10px;
+      background: rgba(0, 4, 10, 0.48);
+      border: 1px solid rgba(124, 246, 255, 0.24);
+      border-radius: 7px;
+    }
+
+    .stage-controls label {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .stage-controls input,
+    .stage-controls select {
+      min-height: 34px;
+    }
+
+    .stage-controls .wide {
+      grid-column: 1 / -1;
+    }
+
+    .stage-controls .checkbox-line {
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      color: #ffffff !important;
+      font-size: 0.78rem !important;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
     .commands,
     pre,
     table {
@@ -1938,48 +1973,7 @@
 
         <label for="sshUser">SSH User</label>
         <input id="sshUser" value="ubuntu">
-
-        <label for="openstackReleaseChoice">OpenStack Release</label>
-        <select id="openstackReleaseChoice">
-          <option value="2025.1" selected>2025.1 Epoxy</option>
-          <option value="2024.2">2024.2 Dalmatian</option>
-          <option value="2024.1">2024.1 Caracal</option>
-          <option value="custom">Custom</option>
-        </select>
-        <input id="openstackReleaseCustom" value="2025.1" hidden>
-        <p class="hint">Release is passed as <code>OPENSTACK_RELEASE</code> to Kolla-Ansible.</p>
-
-        <label for="deployTool">Deployment Tool</label>
-        <select id="deployTool">
-          <option value="kolla" selected>Kolla-Ansible</option>
-          <option value="genestack">Genestack</option>
-        </select>
-        <p class="hint">Genestack uses Kubernetes, OpenStack-Helm, Kustomize, and Helm. Keep Kolla as the simple default PoC path.</p>
-
-        <label for="genestackMode">Genestack Mode</label>
-        <select id="genestackMode">
-          <option value="aio" selected>aio test cloud</option>
-          <option value="base">base HA cloud</option>
-        </select>
-        <label class="checkbox-line"><input id="genestackConfirm" type="checkbox"> Allow Genestack bootstrap/deploy action</label>
-
-        <label for="vip">VIP</label>
-        <input id="vip" value="192.168.10.250">
-
-        <label for="extIface">External Interface</label>
-        <input id="extIface" value="eth0">
-
-        <label for="cidr">Validation CIDR</label>
-        <input id="cidr" value="192.168.100.0/24">
-
-        <label for="gw">Gateway</label>
-        <input id="gw" value="192.168.100.1">
-
-        <label for="poolStart">Pool Start</label>
-        <input id="poolStart" value="192.168.100.100">
-
-        <label for="poolEnd">Pool End</label>
-        <input id="poolEnd" value="192.168.100.200">
+        <p class="hint">Deployment variables now live inside Stage 05. Validation network values live inside Stage 06.</p>
       </aside>
 
       <div class="splitter" id="splitter" role="separator" aria-label="Resize scan panel" aria-orientation="vertical"></div>
@@ -2050,9 +2044,32 @@
     ];
 
     const $ = (id) => document.getElementById(id);
+    const fieldValue = (id, fallback = "") => {
+      const element = $(id);
+      if (!element) return fallback;
+      return (element.value || "").trim() || fallback;
+    };
+    const fieldChecked = (id, fallback = false) => {
+      const element = $(id);
+      return element ? Boolean(element.checked) : fallback;
+    };
     let scanRows = [];
     let selectedNodeRows = [];
     let splitDrag = null;
+    const currentValues = {
+      LAN_CIDR: "auto",
+      SSH_USER: "ubuntu",
+      OPENSTACK_RELEASE: "2025.1",
+      DEPLOY_TOOL: "genestack",
+      GENESTACK_MODE: "aio",
+      GENESTACK_CONFIRM_DEPLOY: "no",
+      VIP: "192.168.10.250",
+      EXT_IFACE: "eth0",
+      CIDR: "192.168.100.0/24",
+      GW: "192.168.100.1",
+      POOL_START: "192.168.100.100",
+      POOL_END: "192.168.100.200"
+    };
     const stageLogs = new Map();
     const passedStages = new Set();
     const attentionStages = new Set();
@@ -2102,31 +2119,34 @@
     }
 
     function values() {
-      return {
-        LAN_CIDR: $("lanCidr").value.trim(),
-        SSH_USER: $("sshUser").value.trim(),
+      const nextValues = {
+        LAN_CIDR: fieldValue("lanCidr", currentValues.LAN_CIDR),
+        SSH_USER: fieldValue("sshUser", currentValues.SSH_USER),
         OPENSTACK_RELEASE: selectedOpenStackRelease(),
-        DEPLOY_TOOL: $("deployTool").value,
-        GENESTACK_MODE: $("genestackMode").value,
-        GENESTACK_CONFIRM_DEPLOY: $("genestackConfirm").checked ? "yes" : "no",
-        VIP: $("vip").value.trim(),
-        EXT_IFACE: $("extIface").value.trim(),
-        CIDR: $("cidr").value.trim(),
-        GW: $("gw").value.trim(),
-        POOL_START: $("poolStart").value.trim(),
-        POOL_END: $("poolEnd").value.trim()
+        DEPLOY_TOOL: fieldValue("deployTool", currentValues.DEPLOY_TOOL),
+        GENESTACK_MODE: fieldValue("genestackMode", currentValues.GENESTACK_MODE),
+        GENESTACK_CONFIRM_DEPLOY: fieldChecked("genestackConfirm", currentValues.GENESTACK_CONFIRM_DEPLOY === "yes") ? "yes" : "no",
+        VIP: fieldValue("vip", currentValues.VIP),
+        EXT_IFACE: fieldValue("extIface", currentValues.EXT_IFACE),
+        CIDR: fieldValue("cidr", currentValues.CIDR),
+        GW: fieldValue("gw", currentValues.GW),
+        POOL_START: fieldValue("poolStart", currentValues.POOL_START),
+        POOL_END: fieldValue("poolEnd", currentValues.POOL_END)
       };
+      Object.assign(currentValues, nextValues);
+      return { ...currentValues };
     }
 
     function selectedOpenStackRelease() {
-      const choice = $("openstackReleaseChoice").value;
-      if (choice === "custom") return $("openstackReleaseCustom").value.trim() || "2025.1";
+      const choice = fieldValue("openstackReleaseChoice", currentValues.OPENSTACK_RELEASE);
+      if (choice === "custom") return fieldValue("openstackReleaseCustom", currentValues.OPENSTACK_RELEASE || "2025.1");
       return choice;
     }
 
     function syncReleasePicker() {
-      const custom = $("openstackReleaseChoice").value === "custom";
-      $("openstackReleaseCustom").hidden = !custom;
+      const picker = $("openstackReleaseChoice");
+      const customInput = $("openstackReleaseCustom");
+      if (picker && customInput) customInput.hidden = picker.value !== "custom";
       updatePocSummary();
       renderStages();
     }
@@ -2155,6 +2175,76 @@
         return `DEPLOY_TOOL=genestack GENESTACK_MODE=${env.GENESTACK_MODE} GENESTACK_CONFIRM_DEPLOY=${env.GENESTACK_CONFIRM_DEPLOY} INVENTORY=multinode-arm.ini scripts/03_deploy_genestack_arm.sh`;
       }
       return `OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} INVENTORY=multinode-arm.ini scripts/03_deploy_kolla_arm.sh`;
+    }
+
+    function selected(value, expected) {
+      return value === expected ? "selected" : "";
+    }
+
+    function checked(value) {
+      return value === "yes" ? "checked" : "";
+    }
+
+    function stageControls(stage) {
+      const env = values();
+      const knownReleases = ["2025.1", "2024.2", "2024.1"];
+      const releaseChoice = knownReleases.includes(env.OPENSTACK_RELEASE) ? env.OPENSTACK_RELEASE : "custom";
+      if (stage.id === "deploy") {
+        return `
+          <div class="stage-controls" aria-label="Deployment settings">
+            <label class="wide" for="deployTool">Deployment Tool
+              <select id="deployTool">
+                <option value="genestack" ${selected(env.DEPLOY_TOOL, "genestack")}>Genestack</option>
+                <option value="kolla" ${selected(env.DEPLOY_TOOL, "kolla")}>Kolla-Ansible</option>
+              </select>
+            </label>
+            <p class="hint wide">Genestack uses Kubernetes, OpenStack-Helm, Kustomize, and Helm. Keep Kolla as the simple default PoC path.</p>
+            <label for="openstackReleaseChoice">OpenStack Release
+              <select id="openstackReleaseChoice">
+                <option value="2025.1" ${selected(releaseChoice, "2025.1")}>2025.1 Epoxy</option>
+                <option value="2024.2" ${selected(releaseChoice, "2024.2")}>2024.2 Dalmatian</option>
+                <option value="2024.1" ${selected(releaseChoice, "2024.1")}>2024.1 Caracal</option>
+                <option value="custom" ${selected(releaseChoice, "custom")}>Custom</option>
+              </select>
+            </label>
+            <label for="openstackReleaseCustom" ${releaseChoice === "custom" ? "" : "hidden"}>Custom Release
+              <input id="openstackReleaseCustom" value="${escapeHtml(env.OPENSTACK_RELEASE)}">
+            </label>
+            <label for="vip">VIP
+              <input id="vip" value="${escapeHtml(env.VIP)}">
+            </label>
+            <label for="extIface">External Interface
+              <input id="extIface" value="${escapeHtml(env.EXT_IFACE)}">
+            </label>
+            <label for="genestackMode">Genestack Mode
+              <select id="genestackMode">
+                <option value="aio" ${selected(env.GENESTACK_MODE, "aio")}>aio test cloud</option>
+                <option value="base" ${selected(env.GENESTACK_MODE, "base")}>base HA cloud</option>
+              </select>
+            </label>
+            <label class="checkbox-line wide"><input id="genestackConfirm" type="checkbox" ${checked(env.GENESTACK_CONFIRM_DEPLOY)}> Allow Genestack bootstrap/deploy action</label>
+          </div>
+        `;
+      }
+      if (stage.id === "validate") {
+        return `
+          <div class="stage-controls" aria-label="Validation network settings">
+            <label for="cidr">Validation CIDR
+              <input id="cidr" value="${escapeHtml(env.CIDR)}">
+            </label>
+            <label for="gw">Gateway
+              <input id="gw" value="${escapeHtml(env.GW)}">
+            </label>
+            <label for="poolStart">Pool Start
+              <input id="poolStart" value="${escapeHtml(env.POOL_START)}">
+            </label>
+            <label for="poolEnd">Pool End
+              <input id="poolEnd" value="${escapeHtml(env.POOL_END)}">
+            </label>
+          </div>
+        `;
+      }
+      return "";
     }
 
     function monitor(stageId) {
@@ -2231,8 +2321,9 @@
 
     function updatePocSummary(lastStageId = "") {
       const selected = selectedNodeRows.length ? selectedNodeRows : selectedRowsFromTable();
-      $("releaseMetric").textContent = selectedOpenStackRelease();
-      $("releaseDetailMetric").textContent = $("deployTool").value === "genestack" ? "Genestack ARM PoC" : "Kolla-Ansible ARM PoC";
+      const env = values();
+      $("releaseMetric").textContent = env.OPENSTACK_RELEASE;
+      $("releaseDetailMetric").textContent = env.DEPLOY_TOOL === "genestack" ? "Genestack ARM PoC" : "Kolla-Ansible ARM PoC";
       $("hardwareTierMetric").textContent = detectHardwareTier(selected);
       $("hardwareDetailMetric").textContent = selected.length
         ? "Active ARM test hardware"
@@ -2500,6 +2591,7 @@
           <div>
             <h3>${stage.title}</h3>
             <p>${stage.body}</p>
+            ${stageControls(stage)}
             <div class="commands">${commandText(stage)}</div>
           </div>
           <div class="button-row">
@@ -2538,12 +2630,19 @@
       selectedNodeRows = selectedRowsFromTable();
       updatePocSummary();
     });
-    document.querySelectorAll("input").forEach((input) => input.addEventListener("input", renderStages));
-    $("openstackReleaseChoice").addEventListener("change", syncReleasePicker);
-    $("openstackReleaseCustom").addEventListener("input", renderStages);
-    $("deployTool").addEventListener("change", renderStages);
-    $("genestackMode").addEventListener("change", renderStages);
-    $("genestackConfirm").addEventListener("change", renderStages);
+    document.addEventListener("input", (event) => {
+      if (!event.target.matches("#lanCidr, #sshUser, #openstackReleaseCustom, #vip, #extIface, #cidr, #gw, #poolStart, #poolEnd")) return;
+      values();
+      updatePocSummary();
+    });
+    document.addEventListener("change", (event) => {
+      if (event.target.matches("#openstackReleaseChoice")) {
+        syncReleasePicker();
+        return;
+      }
+      if (!event.target.matches("#deployTool, #genestackMode, #genestackConfirm")) return;
+      renderStages();
+    });
     initSplitter();
     renderStages();
 
