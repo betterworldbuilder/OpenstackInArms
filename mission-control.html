@@ -1356,6 +1356,98 @@
       margin: 10px 0 18px;
     }
 
+    .path-chooser {
+      margin: 12px 0 10px;
+      padding: 12px;
+      border: 1px solid rgba(124, 246, 255, 0.32);
+      border-radius: 8px;
+      background: rgba(0, 4, 10, 0.62);
+      box-shadow: inset 0 0 18px rgba(0, 229, 255, 0.08), 0 0 14px rgba(0, 229, 255, 0.22);
+    }
+
+    .path-chooser-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .path-chooser-title {
+      color: #ffffff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px #ffffff, 0 0 14px var(--cyan);
+    }
+
+    .path-toggle-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .path-toggle.active {
+      border-color: var(--green) !important;
+      background: linear-gradient(180deg, rgba(18, 112, 28, 0.96), rgba(5, 45, 18, 0.98)) !important;
+      box-shadow: inset 0 0 18px rgba(57, 255, 20, 0.22), 0 0 16px rgba(57, 255, 20, 0.42) !important;
+    }
+
+    .path-lanes {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .path-lane {
+      padding: 10px;
+      border: 1px solid rgba(124, 246, 255, 0.22);
+      border-radius: 7px;
+      background: rgba(5, 15, 34, 0.64);
+      opacity: 0.62;
+    }
+
+    .path-lane.active {
+      opacity: 1;
+      border-color: var(--green);
+      box-shadow: inset 0 0 14px rgba(57, 255, 20, 0.12), 0 0 12px rgba(57, 255, 20, 0.22);
+    }
+
+    .path-lane h3 {
+      margin: 0 0 8px;
+      color: var(--green) !important;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem !important;
+      letter-spacing: 0.08em !important;
+      text-transform: uppercase;
+    }
+
+    .path-stage-list {
+      display: grid;
+      gap: 5px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .path-stage-list li {
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      gap: 8px;
+      align-items: center;
+      color: #dff9ff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+    }
+
+    .path-stage-list span {
+      color: var(--cyan);
+      font-weight: 900;
+      text-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+    }
+
     .stage-tab {
       min-height: 56px;
       padding: 9px 10px;
@@ -1740,6 +1832,7 @@
 
       .stage-tabs,
       .status-strip,
+      .path-lanes,
       .layout {
         grid-template-columns: 1fr !important;
       }
@@ -1991,6 +2084,7 @@
       </section>
     </header>
 
+    <section class="path-chooser" id="pathChooser" aria-label="Deployment path chooser"></section>
     <nav class="stage-tabs" id="stageTabs" aria-label="OpenARMS stages"></nav>
 
     <section class="layout">
@@ -2268,6 +2362,67 @@
         return "Inspect Genestack Kubernetes workload images and highlight ARM64 image-validation signals.";
       }
       return stage.body;
+    }
+
+    function pathStageRows(tool) {
+      if (tool === "genestack") {
+        return [
+          ["01", "Discover ARM nodes"],
+          ["02", "Prereq scan"],
+          ["03", "Bootstrap hosts"],
+          ["04", "Inventory / node plan"],
+          ["05", "Deploy Genestack"],
+          ["06", "Validate Genestack Cloud"],
+          ["07", "Check Genestack Images"],
+          ["08", "Result Stage"],
+          ["09", "Fix & Retest"]
+        ];
+      }
+      return [
+        ["01", "Discover ARM nodes"],
+        ["02", "Prereq scan"],
+        ["03", "Bootstrap hosts"],
+        ["04", "Generate Kolla inventory"],
+        ["05", "Deploy Kolla-Ansible"],
+        ["06", "Validate Kolla OpenStack"],
+        ["07", "Build ARM64 Kolla Images"],
+        ["08", "Result Stage"],
+        ["09", "Fix & Retest"]
+      ];
+    }
+
+    function renderPathLane(tool, title) {
+      const active = values().DEPLOY_TOOL === tool;
+      return `
+        <section class="path-lane ${active ? "active" : ""}" aria-label="${title}">
+          <h3>${title}</h3>
+          <ul class="path-stage-list">
+            ${pathStageRows(tool).map(([num, label]) => `<li><span>${num}</span>${label}</li>`).join("")}
+          </ul>
+        </section>
+      `;
+    }
+
+    function renderPathChooser() {
+      const target = $("pathChooser");
+      if (!target) return;
+      const env = values();
+      target.innerHTML = `
+        <div class="path-chooser-header">
+          <div>
+            <div class="path-chooser-title">Choose Mission Path Before Stage 01</div>
+            <p class="hint">Pick the deployment path first. The stage cards, commands, validation, and image checks switch to match.</p>
+          </div>
+          <div class="path-toggle-row" role="group" aria-label="Deployment path">
+            <button type="button" class="path-toggle ${env.DEPLOY_TOOL === "kolla" ? "active" : ""}" data-path="kolla">Kolla-Ansible</button>
+            <button type="button" class="path-toggle ${env.DEPLOY_TOOL === "genestack" ? "active" : ""}" data-path="genestack">Genestack</button>
+          </div>
+        </div>
+        <div class="path-lanes">
+          ${renderPathLane("kolla", "Kolla-Ansible Path")}
+          ${renderPathLane("genestack", "Genestack Path")}
+        </div>
+      `;
     }
 
     function selected(value, expected) {
@@ -2718,6 +2873,7 @@
 
     function renderStages() {
       updatePocSummary();
+      renderPathChooser();
       renderStageTabs();
       $("stages").innerHTML = "";
       stages.forEach((stage, index) => {
@@ -2749,6 +2905,12 @@
       const runId = action.dataset.run;
       const copyId = action.dataset.copy;
       const jumpId = action.dataset.jump;
+      const pathId = action.dataset.path;
+      if (pathId) {
+        currentValues.DEPLOY_TOOL = pathId;
+        renderStages();
+        return;
+      }
       if (runId) runStage(stages.find((stage) => stage.id === runId));
       if (jumpId) $(`stage-${jumpId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
       if (copyId) {
