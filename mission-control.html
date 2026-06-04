@@ -1169,6 +1169,27 @@
       line-height: 1.55 !important;
     }
 
+    .builder-credit {
+      margin: 8px auto 0;
+      color: #f8fbff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.84rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-shadow:
+        0 0 8px #ffffff,
+        0 0 16px var(--cyan),
+        0 0 22px var(--neon-pink);
+    }
+
+    .love-icon {
+      color: var(--neon-pink);
+      text-shadow:
+        0 0 8px var(--neon-pink),
+        0 0 18px var(--neon-pink),
+        0 0 24px var(--cyan);
+    }
+
     .status-strip {
       display: grid !important;
       grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -1550,6 +1571,7 @@
           <span>This is the place for the Crazy ones, the misfits, The Sleepless Brothers and Sisters in Arms who does not accept things as they are ..but who think of better Why not ?</span>
         </div>
         <p class="subtitle">A clean cockpit for the Raspberry Pi / ARM64 OpenStack PoC: edit node targets, generate inventory, launch controlled steps, and keep the terminal output in one place.</p>
+        <p class="builder-credit">Built wit Love <span class="love-icon" aria-label="love">&hearts;</span> by a Better World Builder - DzoanNguyentran@gmail.com</p>
       </section>
       <section class="status-strip" aria-label="PoC status">
         <div class="metric"><span>Release</span><strong id="releaseMetric">2025.1</strong></div>
