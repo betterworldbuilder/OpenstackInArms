@@ -1587,6 +1587,26 @@
       grid-column: 1 / -1;
     }
 
+    .section-help,
+    .field-help {
+      margin: 0;
+      color: #c8d9e8 !important;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.82rem;
+      line-height: 1.35;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    .section-help {
+      padding-bottom: 2px;
+    }
+
+    .field-help {
+      font-size: 0.72rem;
+      opacity: 0.86;
+    }
+
     .stage-controls .checkbox-line {
       grid-template-columns: auto 1fr;
       align-items: center;
@@ -2192,11 +2212,13 @@
       if (stage.id === "deploy") {
         return `
           <div class="stage-controls" aria-label="Deployment settings">
+            <p class="section-help wide">Deployment settings define which OpenStack installer runs and the management-network values passed into the deploy script.</p>
             <label class="wide" for="deployTool">Deployment Tool
               <select id="deployTool">
                 <option value="genestack" ${selected(env.DEPLOY_TOOL, "genestack")}>Genestack</option>
                 <option value="kolla" ${selected(env.DEPLOY_TOOL, "kolla")}>Kolla-Ansible</option>
               </select>
+              <small class="field-help">Choose Genestack for Kubernetes/OpenStack-Helm, or Kolla-Ansible for the simpler containerized PoC path.</small>
             </label>
             <p class="hint wide">Genestack uses Kubernetes, OpenStack-Helm, Kustomize, and Helm. Keep Kolla as the simple default PoC path.</p>
             <label for="openstackReleaseChoice">OpenStack Release
@@ -2206,40 +2228,51 @@
                 <option value="2024.1" ${selected(releaseChoice, "2024.1")}>2024.1 Caracal</option>
                 <option value="custom" ${selected(releaseChoice, "custom")}>Custom</option>
               </select>
+              <small class="field-help">OpenStack branch or release exported as OPENSTACK_RELEASE for the deployment script.</small>
             </label>
             <label for="openstackReleaseCustom" ${releaseChoice === "custom" ? "" : "hidden"}>Custom Release
               <input id="openstackReleaseCustom" value="${escapeHtml(env.OPENSTACK_RELEASE)}">
+              <small class="field-help">Use this for a release not listed above, for example a specific stable branch name.</small>
             </label>
             <label for="vip">VIP
               <input id="vip" value="${escapeHtml(env.VIP)}">
+              <small class="field-help">Unused management-network address that OpenStack services advertise as the control-plane endpoint.</small>
             </label>
             <label for="extIface">External Interface
               <input id="extIface" value="${escapeHtml(env.EXT_IFACE)}">
+              <small class="field-help">Linux NIC used for provider/external traffic, usually eth0, enp*, or the lab uplink.</small>
             </label>
             <label for="genestackMode">Genestack Mode
               <select id="genestackMode">
                 <option value="aio" ${selected(env.GENESTACK_MODE, "aio")}>aio test cloud</option>
                 <option value="base" ${selected(env.GENESTACK_MODE, "base")}>base HA cloud</option>
               </select>
+              <small class="field-help">AIO is the small PoC profile; base is the broader HA-oriented Genestack starting point.</small>
             </label>
             <label class="checkbox-line wide"><input id="genestackConfirm" type="checkbox" ${checked(env.GENESTACK_CONFIRM_DEPLOY)}> Allow Genestack bootstrap/deploy action</label>
+            <p class="field-help wide">Safety gate for Genestack: leave unchecked to inspect the generated command without starting a guarded bootstrap/deploy run.</p>
           </div>
         `;
       }
       if (stage.id === "validate") {
         return `
           <div class="stage-controls" aria-label="Validation network settings">
+            <p class="section-help wide">Validation settings create the test provider network, boot an ARM64 VM, and check floating IP plus serial-console access.</p>
             <label for="cidr">Validation CIDR
               <input id="cidr" value="${escapeHtml(env.CIDR)}">
+              <small class="field-help">Subnet range used for the validation provider network.</small>
             </label>
             <label for="gw">Gateway
               <input id="gw" value="${escapeHtml(env.GW)}">
+              <small class="field-help">Gateway address for the validation subnet.</small>
             </label>
             <label for="poolStart">Pool Start
               <input id="poolStart" value="${escapeHtml(env.POOL_START)}">
+              <small class="field-help">First floating IP address the validation test may allocate.</small>
             </label>
             <label for="poolEnd">Pool End
               <input id="poolEnd" value="${escapeHtml(env.POOL_END)}">
+              <small class="field-help">Last floating IP address the validation test may allocate.</small>
             </label>
           </div>
         `;
