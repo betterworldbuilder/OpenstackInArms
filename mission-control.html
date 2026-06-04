@@ -971,30 +971,35 @@
     @keyframes openarmsOpenBlink {
       0%, 16%, 22%, 42%, 100% {
         opacity: 1;
-        color: var(--cyan);
+        color: var(--neon-pink);
         text-shadow:
           0 0 8px #ffffff,
-          0 0 18px var(--cyan),
-          0 0 38px var(--cyan),
-          0 0 58px rgba(57, 255, 20, 0.48),
-          0 0 78px rgba(255, 79, 216, 0.26);
+          0 0 18px var(--neon-pink),
+          0 0 38px var(--neon-pink),
+          0 0 58px rgba(0, 229, 255, 0.42),
+          0 0 78px rgba(57, 255, 20, 0.22);
       }
       18%, 20%, 44% {
         opacity: 0.45;
         color: #ffd6fb;
         text-shadow:
-          0 0 5px var(--cyan),
-          0 0 14px rgba(57, 255, 20, 0.38),
+          0 0 5px var(--neon-pink),
+          0 0 14px rgba(0, 229, 255, 0.38),
           0 0 24px var(--neon-pink);
       }
       72% {
-        color: var(--green);
+        color: #ff9af0;
         text-shadow:
           0 0 8px #ffffff,
-          0 0 18px var(--green),
+          0 0 18px var(--neon-pink),
           0 0 38px var(--cyan),
-          0 0 60px rgba(255, 79, 216, 0.22);
+          0 0 60px rgba(57, 255, 20, 0.28);
       }
+    }
+
+    @keyframes tickerRoll {
+      from { transform: translateX(100vw); }
+      to { transform: translateX(-100%); }
     }
 
     html,
@@ -1082,7 +1087,9 @@
 
     .brand-title {
       animation: openarmsLetterBlink 4.8s infinite steps(1, end);
-      filter: drop-shadow(0 0 18px rgba(57, 255, 20, 0.42));
+      filter:
+        drop-shadow(0 0 16px rgba(57, 255, 20, 0.58))
+        drop-shadow(0 0 18px rgba(0, 229, 255, 0.36));
     }
 
     .open-title {
@@ -1090,11 +1097,13 @@
       grid-template-columns: auto auto;
       align-items: center;
       gap: clamp(0.75rem, 2vw, 1.5rem);
-      color: var(--cyan);
+      color: var(--neon-pink);
       font-style: italic;
       letter-spacing: 0.16em;
       animation: openarmsOpenBlink 3.2s infinite steps(1, end);
-      filter: drop-shadow(0 0 16px rgba(255, 79, 216, 0.22));
+      filter:
+        drop-shadow(0 0 18px rgba(255, 79, 216, 0.7))
+        drop-shadow(0 0 22px rgba(0, 229, 255, 0.28));
     }
 
     .open-title::before {
@@ -1124,6 +1133,8 @@
 
     .ticker span {
       display: block;
+      width: max-content;
+      min-width: 100%;
       padding: 8px 0 !important;
       color: var(--green) !important;
       font-family: 'JetBrains Mono', monospace !important;
@@ -1131,7 +1142,9 @@
       font-weight: 900 !important;
       letter-spacing: 0.15em !important;
       text-transform: uppercase;
-      text-shadow: 0 0 10px var(--green) !important;
+      text-shadow: 0 0 10px var(--green), 0 0 18px var(--cyan), 0 0 24px var(--neon-pink) !important;
+      animation: tickerRoll 18s linear infinite;
+      white-space: nowrap;
     }
 
     .subtitle {
