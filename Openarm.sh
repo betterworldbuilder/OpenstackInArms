@@ -22,6 +22,21 @@ open_browser() {
   fi
 }
 
+port_busy() {
+  python3 - "$PORT" <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.settimeout(0.25)
+try:
+    raise SystemExit(0 if sock.connect_ex(("127.0.0.1", port)) == 0 else 1)
+finally:
+    sock.close()
+PY
+}
+
 need_cmd python3
 
 cd "$SCRIPT_DIR"
@@ -29,6 +44,13 @@ cd "$SCRIPT_DIR"
 printf '\nOPENSTACKK BROTHERS and SISTERS in ARM\n'
 printf 'Starting BrothersInArms Mission Control\n'
 printf 'URL: %s\n\n' "$URL"
+
+if port_busy; then
+  printf 'Mission Control is already running on port %s.\n' "$PORT"
+  printf 'Opening existing session: %s\n\n' "$URL"
+  open_browser
+  exit 0
+fi
 
 (
   sleep 1

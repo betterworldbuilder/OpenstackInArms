@@ -6,9 +6,11 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import errno
 import ipaddress
 import json
 import os
+import socket
 import subprocess
 import sys
 
@@ -194,7 +196,13 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> int:
     port = int(os.environ.get("MISSION_CONTROL_PORT", "8787"))
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    try:
+        server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    except OSError as exc:
+        if exc.errno == errno.EADDRINUSE:
+            print(f"Mission Control is already running: http://127.0.0.1:{port}")
+            return 0
+        raise
     print(f"Mission Control: http://127.0.0.1:{port}")
     server.serve_forever()
     return 0
