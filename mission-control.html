@@ -907,6 +907,415 @@
       background: #ffffff1a;
       color: #ffffff;
     }
+
+    /* OpenARMS neon mission skin */
+    :root {
+      --blackout: #000305;
+      --deck: #02070d;
+      --deck-2: #071325;
+      --deck-3: #0c1f3f;
+      --cyan: #00e5ff;
+      --cyan-soft: rgba(0, 229, 255, 0.22);
+      --green: #39ff14;
+      --green-soft: rgba(57, 255, 20, 0.16);
+      --hot: #ff3b73;
+      --amber: #ffb020;
+      --text-bright: #f4fbff;
+      --text-dim: #9fb8ca;
+      --edge: rgba(0, 229, 255, 0.48);
+    }
+
+    @keyframes openarmsPulse {
+      0%, 100% {
+        text-shadow: 0 0 8px #fff, 0 0 16px var(--cyan), 0 0 36px var(--cyan);
+        box-shadow: 0 0 10px var(--cyan), 0 0 34px rgba(0, 229, 255, 0.68), inset 0 0 22px rgba(0, 229, 255, 0.16);
+      }
+      50% {
+        text-shadow: 0 0 5px #fff, 0 0 24px var(--cyan), 0 0 58px var(--cyan);
+        box-shadow: 0 0 18px var(--cyan), 0 0 52px rgba(0, 229, 255, 0.86), inset 0 0 30px rgba(0, 229, 255, 0.26);
+      }
+    }
+
+    html,
+    body {
+      background: #000 !important;
+      color: var(--text-bright) !important;
+      font-family: 'Space Grotesk', system-ui, sans-serif !important;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 4px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+        radial-gradient(circle at 50% 0%, rgba(0, 229, 255, 0.18), transparent 36%),
+        linear-gradient(180deg, #020a10 0%, #000 48%, #020711 100%);
+      background-size: auto, 42px 42px, 42px 42px, auto, auto;
+      z-index: -2;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at center, transparent 0, rgba(0, 0, 0, 0.45) 72%);
+      z-index: -1;
+    }
+
+    #radar,
+    .bg-shape {
+      display: none !important;
+    }
+
+    .app {
+      width: min(1880px, calc(100% - 20px)) !important;
+      max-width: none !important;
+      margin: 0 auto !important;
+      padding: 16px 0 34px !important;
+    }
+
+    .hero {
+      display: block !important;
+      text-align: center !important;
+      padding: 0 !important;
+    }
+
+    .title-bar {
+      display: none !important;
+    }
+
+    .neon-title {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45em;
+      width: min(1360px, calc(100vw - 48px));
+      margin: 0 auto 8px !important;
+      padding: 18px 34px !important;
+      color: #fff !important;
+      background: rgba(0, 14, 18, 0.9) !important;
+      border: 2px solid var(--cyan) !important;
+      border-radius: 18px !important;
+      font-family: 'JetBrains Mono', 'Space Grotesk', monospace !important;
+      font-size: clamp(1.55rem, 3vw, 3rem) !important;
+      font-weight: 900 !important;
+      letter-spacing: 0.14em !important;
+      line-height: 1.05 !important;
+      text-transform: uppercase;
+      animation: openarmsPulse 3.8s infinite linear !important;
+    }
+
+    .neon-title::after {
+      content: " - OPEN 24/24";
+      color: var(--cyan);
+      font-style: italic;
+      letter-spacing: 0.16em;
+      text-shadow: 0 0 18px var(--cyan);
+    }
+
+    .ticker {
+      width: 100% !important;
+      height: 34px;
+      margin: 8px 0 16px !important;
+      overflow: hidden;
+      border: 1px solid rgba(57, 255, 20, 0.42) !important;
+      border-left: 0 !important;
+      border-right: 0 !important;
+      border-radius: 0 !important;
+      background: rgba(0, 70, 22, 0.2) !important;
+      box-shadow: inset 0 0 14px rgba(57, 255, 20, 0.16), 0 0 18px rgba(57, 255, 20, 0.16) !important;
+    }
+
+    .ticker span {
+      display: block;
+      padding: 8px 0 !important;
+      color: var(--green) !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 0.88rem !important;
+      font-weight: 900 !important;
+      letter-spacing: 0.15em !important;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px var(--green) !important;
+    }
+
+    .subtitle {
+      max-width: 980px !important;
+      margin: 10px auto 0 !important;
+      color: #c7def0 !important;
+      font-size: 1rem !important;
+      line-height: 1.55 !important;
+    }
+
+    .status-strip {
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 0 !important;
+      margin: 16px 0 10px !important;
+      border: 1px solid rgba(57, 255, 20, 0.22);
+      background: #010501;
+    }
+
+    .metric {
+      margin: 0 !important;
+      padding: 14px 12px !important;
+      background: rgba(0, 5, 0, 0.9) !important;
+      border: 1px solid rgba(57, 255, 20, 0.18) !important;
+      border-radius: 0 !important;
+      box-shadow: inset 0 0 20px rgba(57, 255, 20, 0.05) !important;
+      text-align: center;
+    }
+
+    .metric span {
+      color: rgba(57, 255, 20, 0.5) !important;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem !important;
+      letter-spacing: 0.18em !important;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      margin-top: 3px;
+      color: var(--green) !important;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.45rem, 2.25vw, 2.4rem) !important;
+      font-weight: 900 !important;
+      text-shadow: 0 0 14px var(--green), 0 0 26px rgba(57, 255, 20, 0.45) !important;
+    }
+
+    .stage-tabs {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(120px, 1fr));
+      gap: 4px;
+      margin: 10px 0 18px;
+    }
+
+    .stage-tab {
+      min-height: 56px;
+      padding: 9px 10px;
+      border: 1px solid var(--cyan) !important;
+      border-radius: 5px !important;
+      background: linear-gradient(180deg, rgba(18, 54, 103, 0.95), rgba(10, 28, 58, 0.96)) !important;
+      color: #fff !important;
+      font-size: 0.82rem;
+      font-weight: 900;
+      text-shadow: 0 0 7px #fff, 0 0 12px var(--cyan);
+      box-shadow: inset 0 0 18px rgba(0, 229, 255, 0.16), 0 0 12px rgba(0, 229, 255, 0.4) !important;
+      cursor: default;
+    }
+
+    .stage-tab span {
+      display: block;
+      margin-top: 4px;
+      color: #d9faff;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-shadow: none;
+    }
+
+    .stage-tab.active {
+      background: linear-gradient(180deg, rgba(0, 156, 200, 0.92), rgba(13, 47, 96, 0.98)) !important;
+      border-color: #7cf6ff !important;
+    }
+
+    .layout {
+      display: grid !important;
+      grid-template-columns: minmax(330px, 430px) minmax(0, 1fr) !important;
+      gap: 14px !important;
+      margin-top: 0 !important;
+    }
+
+    .panel,
+    .stage,
+    .console {
+      background: rgba(8, 18, 42, 0.9) !important;
+      border: 1px solid var(--edge) !important;
+      border-radius: 8px !important;
+      box-shadow: inset 0 0 22px rgba(0, 229, 255, 0.07), 0 0 14px rgba(0, 229, 255, 0.2) !important;
+      backdrop-filter: blur(14px);
+    }
+
+    .panel {
+      position: sticky;
+      top: 10px;
+      max-height: calc(100vh - 20px);
+      overflow: auto;
+    }
+
+    h2,
+    h3 {
+      color: #fff !important;
+      font-weight: 900 !important;
+      letter-spacing: -0.01em !important;
+      text-shadow: 0 0 8px rgba(0, 229, 255, 0.45);
+    }
+
+    label {
+      color: #b5c9dc !important;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem !important;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid rgba(124, 246, 255, 0.48) !important;
+      border-radius: 7px !important;
+      background: rgba(5, 15, 34, 0.96) !important;
+      color: #f7fbff !important;
+      box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.35);
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: 2px solid rgba(0, 229, 255, 0.35);
+      border-color: var(--cyan) !important;
+    }
+
+    button {
+      border: 1px solid #7cf6ff !important;
+      border-radius: 6px !important;
+      background: linear-gradient(180deg, #125c82, #17345f) !important;
+      color: #fff !important;
+      font-weight: 900 !important;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.55);
+      box-shadow: inset 0 0 12px rgba(0, 229, 255, 0.18), 0 0 8px rgba(0, 229, 255, 0.25) !important;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: #fff !important;
+      box-shadow: inset 0 0 16px rgba(0, 229, 255, 0.28), 0 0 16px rgba(0, 229, 255, 0.45) !important;
+    }
+
+    button.ghost,
+    .ghost {
+      background: rgba(8, 21, 48, 0.92) !important;
+    }
+
+    .danger {
+      border-color: #ff9ccd !important;
+      background: linear-gradient(180deg, #b33179, #622970) !important;
+      box-shadow: inset 0 0 14px rgba(255, 59, 115, 0.24), 0 0 12px rgba(255, 59, 115, 0.32) !important;
+    }
+
+    .stage {
+      grid-template-columns: 58px minmax(0, 1fr) auto !important;
+      gap: 14px !important;
+      margin-top: 12px !important;
+    }
+
+    .stage:hover {
+      border-color: var(--cyan) !important;
+      box-shadow: inset 0 0 24px rgba(0, 229, 255, 0.1), 0 0 22px rgba(0, 229, 255, 0.3) !important;
+    }
+
+    .stage-index {
+      width: 40px !important;
+      height: 40px !important;
+      color: #e9fbff !important;
+      background: rgba(0, 229, 255, 0.12) !important;
+      border: 1px solid rgba(124, 246, 255, 0.7) !important;
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.28) !important;
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    .pill {
+      color: var(--green) !important;
+      background: rgba(57, 255, 20, 0.09) !important;
+      border: 1px solid rgba(57, 255, 20, 0.38) !important;
+      box-shadow: inset 0 0 10px rgba(57, 255, 20, 0.08) !important;
+    }
+
+    .stage p,
+    .subtitle,
+    .hint {
+      color: var(--text-dim) !important;
+    }
+
+    .commands,
+    pre,
+    table {
+      background: rgba(0, 4, 10, 0.78) !important;
+      border: 1px solid rgba(124, 246, 255, 0.3) !important;
+      border-radius: 7px !important;
+      color: #dff9ff !important;
+    }
+
+    .commands,
+    pre,
+    code,
+    th,
+    td,
+    textarea {
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    th {
+      background: rgba(0, 229, 255, 0.13) !important;
+      color: #c9fbff !important;
+      font-size: 0.68rem !important;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    td {
+      color: #ecfbff !important;
+      border-bottom: 1px solid rgba(124, 246, 255, 0.14) !important;
+    }
+
+    tr:hover td {
+      background: rgba(0, 229, 255, 0.07);
+    }
+
+    .console {
+      margin-top: 12px !important;
+      border-color: rgba(57, 255, 20, 0.34) !important;
+    }
+
+    .console pre {
+      min-height: 170px;
+      color: var(--green) !important;
+      text-shadow: 0 0 8px rgba(57, 255, 20, 0.32);
+    }
+
+    ::selection {
+      background: rgba(0, 229, 255, 0.35);
+      color: #fff;
+    }
+
+    @media (max-width: 980px) {
+      .neon-title {
+        flex-direction: column;
+        gap: 0.2rem;
+        width: calc(100vw - 24px);
+        padding: 14px 12px !important;
+        letter-spacing: 0.08em !important;
+      }
+
+      .stage-tabs,
+      .status-strip,
+      .layout {
+        grid-template-columns: 1fr !important;
+      }
+
+      .panel {
+        position: relative;
+        max-height: none;
+      }
+
+      .stage {
+        grid-template-columns: 1fr !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -929,6 +1338,16 @@
         <div class="metric"><span>Console</span><strong>Serial First</strong></div>
       </section>
     </header>
+
+    <nav class="stage-tabs" aria-label="OpenARMS stages">
+      <button type="button" class="stage-tab active">Stage 0<span>LAN Scout</span></button>
+      <button type="button" class="stage-tab">Stage 1<span>Prereq Scan</span></button>
+      <button type="button" class="stage-tab">Stage 2<span>Bootstrap</span></button>
+      <button type="button" class="stage-tab">Stage 3<span>Inventory</span></button>
+      <button type="button" class="stage-tab">Stage 4<span>Deploy</span></button>
+      <button type="button" class="stage-tab">Stage 5<span>Validate</span></button>
+      <button type="button" class="stage-tab">Stage 6<span>Build Images</span></button>
+    </nav>
 
     <section class="layout">
       <aside class="panel">
