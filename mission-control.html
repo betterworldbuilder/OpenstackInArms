@@ -1296,6 +1296,18 @@
       background: #010501;
     }
 
+    .poc-config-title {
+      margin: 18px 0 0;
+      color: #ffffff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.05rem;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-align: center;
+      text-transform: uppercase;
+      text-shadow: 0 0 8px #ffffff, 0 0 16px var(--green), 0 0 24px var(--cyan);
+    }
+
     .metric {
       margin: 0 !important;
       padding: 14px 12px !important;
@@ -1867,8 +1879,9 @@
           </div>
         </details>
       </section>
-      <section class="status-strip" aria-label="Current PoC status">
-        <div class="metric"><span>Hardware Tier</span><strong id="hardwareTierMetric">Raspberry Pi 5 Lab</strong><small id="hardwareDetailMetric">Scan/select nodes to populate CPU, RAM, disk, and OS.</small></div>
+      <h2 class="poc-config-title">current POC config</h2>
+      <section class="status-strip" aria-label="Current PoC config">
+        <div class="metric"><span>Hardware Tier</span><strong id="hardwareTierMetric">ARM Lab PoC</strong><small id="hardwareDetailMetric">ARM lab hardware profile</small></div>
         <div class="metric"><span>Nodes</span><strong id="nodesMetric">0 selected</strong><small id="nodesDetailMetric">Waiting for ARM targets.</small></div>
         <div class="metric"><span>OpenStack</span><strong id="releaseMetric">2025.1</strong><small id="releaseDetailMetric">Kolla-Ansible ARM PoC</small></div>
         <div class="metric"><span>Current Status</span><strong id="statusMetric">Ready to Scan</strong><small id="statusDetailMetric">Start with Stage 01 discovery.</small></div>
@@ -2155,7 +2168,7 @@
     }
 
     function detectHardwareTier(rows) {
-      if (!rows.length) return "Raspberry Pi 5 Lab";
+      if (!rows.length) return "ARM Lab PoC";
       const text = rows.map((row) => `${row.model} ${row.cpu} ${row.hostname}`).join(" ").toLowerCase();
       if (/ampere|altra|ampereone|server/.test(text)) return "ARM Server PoC";
       if (/raspberry|pi 5|cortex-a76/.test(text)) return "Raspberry Pi 5 Lab";
@@ -2178,10 +2191,12 @@
       $("releaseMetric").textContent = selectedOpenStackRelease();
       $("hardwareTierMetric").textContent = detectHardwareTier(selected);
       $("hardwareDetailMetric").textContent = selected.length
-        ? selected.slice(0, 3).map((row) => `${row.hostname || row.ip}: ${hardwareDetails(row)}`).join("\n")
-        : "Scan/select nodes to populate CPU, RAM, disk, and OS.";
+        ? "Active ARM test hardware"
+        : "Select ARM lab or ARM server targets.";
       $("nodesMetric").textContent = selected.length ? `${selected.length} selected` : "0 selected";
-      $("nodesDetailMetric").textContent = selected.length ? roleSummary(selected) : "Waiting for ARM targets.";
+      $("nodesDetailMetric").textContent = selected.length
+        ? `${roleSummary(selected)}\n${selected.slice(0, 3).map((row) => `${row.hostname || row.ip}: ${hardwareDetails(row)}`).join("\n")}`
+        : "Waiting for ARM targets. Select nodes to show model, OS, CPU, RAM, and disk.";
 
       const lastPassed = [...passedStages].at(-1);
       const lastAttention = [...attentionStages].at(-1);
