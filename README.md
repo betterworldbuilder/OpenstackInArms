@@ -26,6 +26,12 @@ Start the local web UI from the repo root:
 
 ```bash
 cd /home/dzoan/OSPC2FLEX/Openstack-SisandBrotherInArms
+./Openarm.sh
+```
+
+Alternative direct launch:
+
+```bash
 python3 scripts/06_mission_control_server.py
 ```
 
@@ -94,6 +100,7 @@ The deployment script installs Kolla-Ansible from `stable/${OPENSTACK_RELEASE}` 
 
 ```text
 ├── README.md
+├── Openarm.sh
 ├── mission-control.html
 ├── nodes.example.txt
 ├── scripts/
