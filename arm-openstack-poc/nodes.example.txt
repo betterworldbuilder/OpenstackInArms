@@ -1,0 +1,9 @@
+# ip              hostname       role
+# role can be: controller, compute, storage, all
+# Raspberry Pi 5 example:
+192.168.10.11     pi-os-ctrl     controller
+192.168.10.12     pi-os-cmp1     compute
+192.168.10.13     pi-os-cmp2     compute
+
+# Single ARM64 server all-in-one example:
+# 192.168.10.21   arm-os-aio     all
