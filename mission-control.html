@@ -1445,6 +1445,29 @@
       text-shadow: 0 0 8px rgba(57, 255, 20, 0.32);
     }
 
+    .stage-monitor {
+      grid-column: 1 / -1;
+      min-height: 78px;
+      max-height: 260px;
+      margin: 0;
+      padding: 10px 12px;
+      overflow: auto;
+      color: var(--green) !important;
+      background: rgba(0, 4, 7, 0.9) !important;
+      border-color: rgba(57, 255, 20, 0.28) !important;
+      text-shadow: 0 0 8px rgba(57, 255, 20, 0.26);
+      white-space: pre-wrap;
+    }
+
+    .stage-monitor:empty::before {
+      content: "monitor ready";
+      color: rgba(57, 255, 20, 0.46);
+    }
+
+    .hidden-node-buffer {
+      display: none !important;
+    }
+
     ::selection {
       background: rgba(0, 229, 255, 0.35);
       color: #fff;
@@ -1544,13 +1567,8 @@
             </tbody>
           </table>
         </div>
-        <label for="nodes">nodes.txt</label>
-        <textarea id="nodes">192.168.10.11 pi-os-ctrl controller
+        <textarea class="hidden-node-buffer" id="nodes">192.168.10.11 pi-os-ctrl controller
 192.168.10.12 pi-os-cmp1 compute</textarea>
-        <div class="button-row">
-          <button id="saveNodes">Save Nodes</button>
-          <button class="ghost" id="loadExample">2 Pi Example</button>
-        </div>
 
         <label for="sshUser">SSH User</label>
         <input id="sshUser" value="ubuntu">
@@ -1588,16 +1606,6 @@
 
       <section>
         <div class="stage-grid" id="stages"></div>
-        <section class="console">
-          <div class="console-head">
-            <h2>Run Output</h2>
-            <div class="button-row" style="margin:0">
-              <button class="ghost" id="clearLog">Clear</button>
-            </div>
-          </div>
-          <pre id="output">OpenARMS Mission Control ready.
-Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
-        </section>
       </section>
     </section>
   </main>
@@ -1650,9 +1658,9 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
     ];
 
     const $ = (id) => document.getElementById(id);
-    const output = $("output");
     let scanRows = [];
     let splitDrag = null;
+    const stageLogs = new Map();
 
     function setSidebarWidth(width) {
       const max = Math.max(520, Math.min(window.innerWidth - 520, 880));
@@ -1742,9 +1750,18 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
       );
     }
 
-    function append(text) {
-      output.textContent += `\n${text}`;
-      output.scrollTop = output.scrollHeight;
+    function monitor(stageId) {
+      return $(`monitor-${stageId}`);
+    }
+
+    function append(stageId, text) {
+      const target = monitor(stageId);
+      if (!target) return;
+      const current = stageLogs.get(stageId) || "";
+      const next = `${current}${current ? "\n" : ""}${text}`;
+      stageLogs.set(stageId, next);
+      target.textContent = next;
+      target.scrollTop = target.scrollHeight;
     }
 
     function setBusy(busy) {
@@ -1769,13 +1786,13 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
       }
       if (stage.danger && !confirm("Deploy will change remote ARM nodes and /etc/kolla. Continue?")) return;
       setBusy(true);
-      append(`\n$ ${commandText(stage)}`);
+      append(stage.id, `$ ${commandText(stage)}`);
       try {
         const data = await api("/api/run", { step: stage.id, env: values() });
-        append(data.output || "(no output)");
-        append(`exit code: ${data.code}`);
+        append(stage.id, data.output || "(no output)");
+        append(stage.id, `exit code: ${data.code}`);
       } catch (error) {
-        append(`ERROR: ${error.message}`);
+        append(stage.id, `ERROR: ${error.message}`);
       } finally {
         setBusy(false);
       }
@@ -1807,23 +1824,23 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
 
     async function scanLan() {
       setBusy(true);
-      append(`\nWhere are my Arms?: scanning ${$("lanCidr").value.trim() || "auto"} as ${$("sshUser").value.trim()}`);
+      append("scan", `Where are my Arms?: scanning ${$("lanCidr").value.trim() || "auto"} as ${$("sshUser").value.trim()}`);
       try {
         const data = await api("/api/scan-lan", {
           cidr: $("lanCidr").value.trim(),
           sshUser: $("sshUser").value.trim()
         });
-        if (data.cidrs && data.cidrs.length) append(`scan range(s): ${data.cidrs.join(", ")}`);
+        if (data.cidrs && data.cidrs.length) append("scan", `scan range(s): ${data.cidrs.join(", ")}`);
         renderScanRows(data.hosts || []);
-        append(`found ${data.hosts.length} reachable host(s)`);
+        append("scan", `found ${data.hosts.length} reachable host(s)`);
       } catch (error) {
-        append(`ERROR: ${error.message}`);
+        append("scan", `ERROR: ${error.message}`);
       } finally {
         setBusy(false);
       }
     }
 
-    function useSelectedRows() {
+    async function useSelectedRows() {
       const lines = [];
       scanRows.forEach((row, index) => {
         const use = document.querySelector(`[data-scan-use="${index}"]`);
@@ -1833,11 +1850,20 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
         lines.push(`${row.ip} ${host || `arm-node-${index + 1}`} ${role}`);
       });
       if (!lines.length) {
-        append("select at least one discovered host first");
+        append("scan", "select at least one discovered host first");
         return;
       }
       $("nodes").value = lines.join("\n");
-      append("nodes.txt draft updated from selected ARM discovery rows");
+      append("scan", `selected ${lines.length} ARM endpoint(s)`);
+      setBusy(true);
+      try {
+        const data = await api("/api/save-nodes", { content: $("nodes").value });
+        append("scan", data.output);
+      } catch (error) {
+        append("scan", `ERROR: ${error.message}`);
+      } finally {
+        setBusy(false);
+      }
     }
 
     function renderStages() {
@@ -1857,6 +1883,7 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
             <button class="${stage.danger ? "danger" : ""}" data-run="${stage.id}">${stage.id === "scan" ? "Scan" : stage.danger ? "Deploy" : "Run"}</button>
             <button class="ghost" data-copy="${stage.id}">Copy</button>
           </div>
+          <pre class="stage-monitor" id="monitor-${stage.id}">${escapeHtml(stageLogs.get(stage.id) || "")}</pre>
         `;
         $("stages").appendChild(node);
       });
@@ -1869,30 +1896,12 @@ Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
       if (copyId) {
         const stage = stages.find((item) => item.id === copyId);
         await navigator.clipboard.writeText(commandText(stage));
-        append(`copied: ${stage.title}`);
-      }
-    });
-
-    $("saveNodes").addEventListener("click", async () => {
-      setBusy(true);
-      try {
-        const data = await api("/api/save-nodes", { content: $("nodes").value });
-        append(data.output);
-      } catch (error) {
-        append(`ERROR: ${error.message}`);
-      } finally {
-        setBusy(false);
+        append(stage.id, `copied: ${stage.title}`);
       }
     });
 
     $("scanLan").addEventListener("click", scanLan);
     $("useSelected").addEventListener("click", useSelectedRows);
-
-    $("loadExample").addEventListener("click", () => {
-      $("nodes").value = "192.168.10.11 pi-os-ctrl controller\n192.168.10.12 pi-os-cmp1 compute";
-    });
-
-    $("clearLog").addEventListener("click", () => output.textContent = "OpenARMS Mission Control ready.");
     document.querySelectorAll("input").forEach((input) => input.addEventListener("input", renderStages));
     $("openstackReleaseChoice").addEventListener("change", syncReleasePicker);
     $("openstackReleaseCustom").addEventListener("input", renderStages);
