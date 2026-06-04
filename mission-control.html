@@ -1340,7 +1340,7 @@
     </header>
 
     <nav class="stage-tabs" aria-label="OpenARMS stages">
-      <button type="button" class="stage-tab active">Stage 0<span>LAN Scout</span></button>
+      <button type="button" class="stage-tab active">Stage 0<span>Where are my Arms?</span></button>
       <button type="button" class="stage-tab">Stage 1<span>Prereq Scan</span></button>
       <button type="button" class="stage-tab">Stage 2<span>Bootstrap</span></button>
       <button type="button" class="stage-tab">Stage 3<span>Inventory</span></button>
@@ -1352,10 +1352,10 @@
     <section class="layout">
       <aside class="panel">
         <h2>Mission Variables</h2>
-        <label for="lanCidr">LAN Scout CIDR</label>
-        <input id="lanCidr" value="192.168.10.0/24">
+        <label for="lanCidr">Where are my Arms? : finding your Arms servers</label>
+        <input id="lanCidr" value="auto" placeholder="auto or 192.168.10.0/24">
         <div class="button-row">
-          <button id="scanLan">Scan LAN</button>
+          <button id="scanLan">Find My Arms</button>
           <button class="ghost" id="useSelected">Use Selected</button>
         </div>
         <div class="scan-box">
@@ -1371,7 +1371,7 @@
               </tr>
             </thead>
             <tbody id="scanResults">
-              <tr><td colspan="5">Run LAN Scout to discover candidates.</td></tr>
+              <tr><td colspan="5">Run Where are my Arms? to discover candidates.</td></tr>
             </tbody>
           </table>
         </div>
@@ -1425,7 +1425,7 @@
             </div>
           </div>
           <pre id="output">OpenARMS Mission Control ready.
-Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
+Start with Where are my Arms?, select ARM nodes, then save nodes.txt.</pre>
         </section>
       </section>
     </section>
@@ -1435,9 +1435,9 @@ Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
     const stages = [
       {
         id: "scan",
-        title: "LAN Scout",
-        body: "Scan the LAN, detect reachable hosts, probe SSH for architecture, and choose which IPs become ARM OpenStack nodes.",
-        command: "scan $LAN_CIDR and select ARM nodes"
+        title: "Where are my Arms? : finding your Arms servers",
+        body: "Auto-scan the laptop LAN, detect reachable hosts, probe SSH for architecture, and choose which IPs become ARM OpenStack nodes.",
+        command: "scan auto laptop LAN or $LAN_CIDR and select ARM nodes"
       },
       {
         id: "prereqs",
@@ -1591,12 +1591,13 @@ Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
 
     async function scanLan() {
       setBusy(true);
-      append(`\nLAN Scout: scanning ${$("lanCidr").value.trim()} as ${$("sshUser").value.trim()}`);
+      append(`\nWhere are my Arms?: scanning ${$("lanCidr").value.trim() || "auto"} as ${$("sshUser").value.trim()}`);
       try {
         const data = await api("/api/scan-lan", {
           cidr: $("lanCidr").value.trim(),
           sshUser: $("sshUser").value.trim()
         });
+        if (data.cidrs && data.cidrs.length) append(`scan range(s): ${data.cidrs.join(", ")}`);
         renderScanRows(data.hosts || []);
         append(`found ${data.hosts.length} reachable host(s)`);
       } catch (error) {
@@ -1620,7 +1621,7 @@ Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
         return;
       }
       $("nodes").value = lines.join("\n");
-      append("nodes.txt draft updated from selected LAN Scout rows");
+      append("nodes.txt draft updated from selected ARM discovery rows");
     }
 
     function renderStages() {

@@ -13,6 +13,7 @@ import os
 import socket
 import subprocess
 import sys
+import shutil
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,6 +45,64 @@ ENV_KEYS = {
     "POOL_START",
     "POOL_END",
 }
+
+
+def local_lan_networks() -> list[ipaddress.IPv4Network]:
+    networks: list[ipaddress.IPv4Network] = []
+
+    if shutil.which("powershell.exe"):
+        ps_script = (
+            "Get-NetIPAddress -AddressFamily IPv4 | "
+            "Where-Object { "
+            "$_.IPAddress -notmatch '^(127|169\\.254)\\.' -and "
+            "$_.PrefixLength -le 30 -and "
+            "$_.InterfaceAlias -notmatch '(vEthernet|WSL|Docker|Loopback|Hyper-V|Npcap)' "
+            "} | "
+            "ForEach-Object { \"$($_.IPAddress)/$($_.PrefixLength)\" }"
+        )
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-Command", ps_script],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=8,
+        )
+        for line in result.stdout.splitlines():
+            value = line.strip().replace("\r", "")
+            if not value:
+                continue
+            try:
+                networks.append(ipaddress.ip_interface(value).network)
+            except ValueError:
+                continue
+
+    if not networks and shutil.which("ip"):
+        result = subprocess.run(
+            ["ip", "-o", "-4", "addr", "show", "scope", "global"],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=5,
+        )
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            if "inet" not in parts:
+                continue
+            value = parts[parts.index("inet") + 1]
+            try:
+                networks.append(ipaddress.ip_interface(value).network)
+            except ValueError:
+                continue
+
+    seen: set[str] = set()
+    unique = []
+    for network in networks:
+        key = str(network)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(network)
+    return unique
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -97,14 +156,21 @@ class Handler(BaseHTTPRequestHandler):
     def scan_lan(self, payload: dict[str, object]) -> None:
         cidr = str(payload.get("cidr", "")).strip()
         ssh_user = str(payload.get("sshUser", "ubuntu")).strip() or "ubuntu"
-        if not cidr:
-            self._json(400, {"error": "CIDR is required"})
-            return
+        if not cidr or cidr.lower() == "auto":
+            networks = local_lan_networks()
+            if not networks:
+                self._json(400, {"error": "Could not auto-detect a LAN CIDR. Enter one manually, for example 192.168.10.0/24."})
+                return
+        else:
+            networks = [ipaddress.ip_network(cidr, strict=False)]
 
-        network = ipaddress.ip_network(cidr, strict=False)
-        hosts = [str(ip) for ip in network.hosts()]
-        if len(hosts) > 1024:
-            self._json(400, {"error": "Scan range too large. Use /24 or smaller."})
+        hosts = sorted(
+            {str(ip) for network in networks for ip in network.hosts()},
+            key=lambda value: tuple(int(part) for part in value.split(".")),
+        )
+        if len(hosts) > 4096:
+            cidrs = ", ".join(str(network) for network in networks)
+            self._json(400, {"error": f"Auto-detected scan is too large ({len(hosts)} IPs: {cidrs}). Enter a smaller CIDR like 192.168.10.0/24."})
             return
 
         def probe(ip: str) -> dict[str, object] | None:
@@ -160,7 +226,7 @@ class Handler(BaseHTTPRequestHandler):
                     found.append(row)
 
         found.sort(key=lambda row: tuple(int(part) for part in str(row["ip"]).split(".")))
-        self._json(200, {"hosts": found})
+        self._json(200, {"cidrs": [str(network) for network in networks], "hosts": found})
 
     def run_step(self, payload: dict[str, object]) -> None:
         step = str(payload.get("step", ""))
