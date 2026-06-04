@@ -1884,36 +1884,40 @@
               <div class="howto-step"><strong>05 Improve</strong>Use Result Stage to read logs, Hardware & Software Fix to suggest changes, then retest from Stage 01.</div>
             </div>
 
-            <h3>Kolla vs Genestack Stage Flow</h3>
-            <div class="howto-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Stage</th>
-                    <th>Kolla-Ansible Path</th>
-                    <th>Genestack Path</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><td><strong>01 Discover</strong></td><td>Scan LAN, find ARM nodes, choose controller/compute/storage roles.</td><td>Same discovery path.</td></tr>
-                  <tr><td><strong>02 Prereq Scan</strong></td><td>Validate SSH, local tools, node file, ARM reachability.</td><td>Same base checks, plus Kubernetes readiness becomes important later.</td></tr>
-                  <tr><td><strong>03 Bootstrap</strong></td><td>Install packages, time sync, Open vSwitch, and KVM checks.</td><td>Same host preparation baseline before Genestack validation.</td></tr>
-                  <tr><td><strong>04 Inventory</strong></td><td>Generate <code>multinode-arm.ini</code> for Kolla-Ansible.</td><td>Use inventory as the node plan and ARM target context.</td></tr>
-                  <tr><td><strong>05 Deploy</strong></td><td>Run <code>scripts/03_deploy_kolla_arm.sh</code>.</td><td>Run <code>scripts/03_deploy_genestack_arm.sh</code>.</td></tr>
-                  <tr><td><strong>Deploy Inputs</strong></td><td><code>SSH_USER</code>, <code>OPENSTACK_RELEASE</code>, <code>VIP</code>, <code>EXT_IFACE</code>, <code>INVENTORY</code>.</td><td><code>SSH_USER</code>, <code>GENESTACK_MODE</code>, <code>GENESTACK_PATH</code>, <code>GENESTACK_CONFIRM_DEPLOY</code>, <code>INVENTORY</code>.</td></tr>
-                  <tr><td><strong>Deploy Model</strong></td><td>OpenStack services in containers via Kolla-Ansible.</td><td>Kubernetes plus OpenStack-Helm, Kustomize, and Helm via Genestack.</td></tr>
-                  <tr><td><strong>06 Validate</strong></td><td>Run <code>scripts/04_validate_arm_openstack.sh</code>.</td><td>Run <code>scripts/04_validate_genestack_arm.sh</code>.</td></tr>
-                  <tr><td><strong>Validation Checks</strong></td><td>OpenStack services, hypervisors, ARM64 image, flavor, provider network, subnet, VM boot, serial console.</td><td>Genestack checkout, Kubernetes nodes, OpenStack/Genestack pods, Helm releases, optional OpenStack services/endpoints.</td></tr>
-                  <tr><td><strong>Validate Inputs</strong></td><td><code>OPENRC</code>, <code>CIDR</code>, <code>GW</code>, <code>POOL_START</code>, <code>POOL_END</code>.</td><td><code>GENESTACK_PATH</code>, <code>KUBECONFIG</code>, <code>GENESTACK_OPENRC</code>.</td></tr>
-                  <tr><td><strong>07 Images</strong></td><td>Build ARM64 Kolla images with <code>scripts/05_build_arm64_kolla_images.sh</code>.</td><td>Check Genestack workload image references with <code>scripts/05_check_genestack_images.sh</code>.</td></tr>
-                  <tr><td><strong>Best Use</strong></td><td>Fast OpenStack ARM PoC, simpler path, direct OpenStack validation.</td><td>Kubernetes-backed OpenStack validation and serious platform experiments.</td></tr>
-                  <tr><td><strong>Risk Level</strong></td><td>Lower complexity.</td><td>Higher complexity with more moving parts.</td></tr>
-                  <tr><td><strong>Raspberry Pi Fit</strong></td><td>Better fit for a small lab PoC.</td><td>Possible but heavy; better on ARM servers.</td></tr>
-                  <tr><td><strong>ARM Server Fit</strong></td><td>Good fit.</td><td>Best fit.</td></tr>
-                  <tr><td><strong>Main Output</strong></td><td>Working OpenStack services and ARM64 VM boot.</td><td>Genestack/Kubernetes/OpenStack readiness and ARM64 image compatibility signal.</td></tr>
-                </tbody>
-              </table>
-            </div>
+            <details class="hardware-config">
+              <summary>Kolla vs Genestack Stage Flow</summary>
+              <div class="hardware-config-body">
+                <div class="howto-table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Stage</th>
+                        <th>Kolla-Ansible Path</th>
+                        <th>Genestack Path</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr><td><strong>01 Discover</strong></td><td>Scan LAN, find ARM nodes, choose controller/compute/storage roles.</td><td>Same discovery path.</td></tr>
+                      <tr><td><strong>02 Prereq Scan</strong></td><td>Validate SSH, local tools, node file, ARM reachability.</td><td>Same base checks, plus Kubernetes readiness becomes important later.</td></tr>
+                      <tr><td><strong>03 Bootstrap</strong></td><td>Install packages, time sync, Open vSwitch, and KVM checks.</td><td>Same host preparation baseline before Genestack validation.</td></tr>
+                      <tr><td><strong>04 Inventory</strong></td><td>Generate <code>multinode-arm.ini</code> for Kolla-Ansible.</td><td>Use inventory as the node plan and ARM target context.</td></tr>
+                      <tr><td><strong>05 Deploy</strong></td><td>Run <code>scripts/03_deploy_kolla_arm.sh</code>.</td><td>Run <code>scripts/03_deploy_genestack_arm.sh</code>.</td></tr>
+                      <tr><td><strong>Deploy Inputs</strong></td><td><code>SSH_USER</code>, <code>OPENSTACK_RELEASE</code>, <code>VIP</code>, <code>EXT_IFACE</code>, <code>INVENTORY</code>.</td><td><code>SSH_USER</code>, <code>GENESTACK_MODE</code>, <code>GENESTACK_PATH</code>, <code>GENESTACK_CONFIRM_DEPLOY</code>, <code>INVENTORY</code>.</td></tr>
+                      <tr><td><strong>Deploy Model</strong></td><td>OpenStack services in containers via Kolla-Ansible.</td><td>Kubernetes plus OpenStack-Helm, Kustomize, and Helm via Genestack.</td></tr>
+                      <tr><td><strong>06 Validate</strong></td><td>Run <code>scripts/04_validate_arm_openstack.sh</code>.</td><td>Run <code>scripts/04_validate_genestack_arm.sh</code>.</td></tr>
+                      <tr><td><strong>Validation Checks</strong></td><td>OpenStack services, hypervisors, ARM64 image, flavor, provider network, subnet, VM boot, serial console.</td><td>Genestack checkout, Kubernetes nodes, OpenStack/Genestack pods, Helm releases, optional OpenStack services/endpoints.</td></tr>
+                      <tr><td><strong>Validate Inputs</strong></td><td><code>OPENRC</code>, <code>CIDR</code>, <code>GW</code>, <code>POOL_START</code>, <code>POOL_END</code>.</td><td><code>GENESTACK_PATH</code>, <code>KUBECONFIG</code>, <code>GENESTACK_OPENRC</code>.</td></tr>
+                      <tr><td><strong>07 Images</strong></td><td>Build ARM64 Kolla images with <code>scripts/05_build_arm64_kolla_images.sh</code>.</td><td>Check Genestack workload image references with <code>scripts/05_check_genestack_images.sh</code>.</td></tr>
+                      <tr><td><strong>Best Use</strong></td><td>Fast OpenStack ARM PoC, simpler path, direct OpenStack validation.</td><td>Kubernetes-backed OpenStack validation and serious platform experiments.</td></tr>
+                      <tr><td><strong>Risk Level</strong></td><td>Lower complexity.</td><td>Higher complexity with more moving parts.</td></tr>
+                      <tr><td><strong>Raspberry Pi Fit</strong></td><td>Better fit for a small lab PoC.</td><td>Possible but heavy; better on ARM servers.</td></tr>
+                      <tr><td><strong>ARM Server Fit</strong></td><td>Good fit.</td><td>Best fit.</td></tr>
+                      <tr><td><strong>Main Output</strong></td><td>Working OpenStack services and ARM64 VM boot.</td><td>Genestack/Kubernetes/OpenStack readiness and ARM64 image compatibility signal.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
 
             <details class="hardware-config">
               <summary>POC ARM Hardware configuration</summary>
