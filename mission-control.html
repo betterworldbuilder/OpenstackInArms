@@ -1991,9 +1991,7 @@
         <textarea class="hidden-node-buffer" id="nodes">192.168.10.11 pi-os-ctrl controller
 192.168.10.12 pi-os-cmp1 compute</textarea>
 
-        <label for="sshUser">SSH User</label>
-        <input id="sshUser" value="ubuntu">
-        <p class="hint">Deployment variables now live inside Stage 05. Validation network values live inside Stage 06.</p>
+        <p class="hint">Access and deployment settings live inside Stage 05. Validation network values live inside Stage 06.</p>
       </aside>
 
       <div class="splitter" id="splitter" role="separator" aria-label="Resize scan panel" aria-orientation="vertical"></div>
@@ -2083,6 +2081,10 @@
       DEPLOY_TOOL: "genestack",
       GENESTACK_MODE: "aio",
       GENESTACK_CONFIRM_DEPLOY: "no",
+      GENESTACK_PATH: "/opt/genestack",
+      KUBECONFIG: "/etc/kubernetes/admin.conf",
+      OPENRC: "/etc/kolla/admin-openrc.sh",
+      GENESTACK_OPENRC: "/etc/genestack/admin-openrc.sh",
       VIP: "192.168.10.250",
       EXT_IFACE: "eth0",
       CIDR: "192.168.100.0/24",
@@ -2146,6 +2148,10 @@
         DEPLOY_TOOL: fieldValue("deployTool", currentValues.DEPLOY_TOOL),
         GENESTACK_MODE: fieldValue("genestackMode", currentValues.GENESTACK_MODE),
         GENESTACK_CONFIRM_DEPLOY: fieldChecked("genestackConfirm", currentValues.GENESTACK_CONFIRM_DEPLOY === "yes") ? "yes" : "no",
+        GENESTACK_PATH: fieldValue("genestackPath", currentValues.GENESTACK_PATH),
+        KUBECONFIG: fieldValue("kubeconfig", currentValues.KUBECONFIG),
+        OPENRC: fieldValue("openrc", currentValues.OPENRC),
+        GENESTACK_OPENRC: fieldValue("genestackOpenrc", currentValues.GENESTACK_OPENRC),
         VIP: fieldValue("vip", currentValues.VIP),
         EXT_IFACE: fieldValue("extIface", currentValues.EXT_IFACE),
         CIDR: fieldValue("cidr", currentValues.CIDR),
@@ -2183,6 +2189,8 @@
 
     function commandText(stage) {
       if (stage.id === "deploy") return deployCommand();
+      if (stage.id === "validate") return validateCommand();
+      if (stage.id === "images") return imageStageCommand();
       return Object.entries(values()).reduce(
         (cmd, [key, value]) => cmd.replaceAll(`$${key}`, value),
         stage.command
@@ -2192,9 +2200,43 @@
     function deployCommand() {
       const env = values();
       if (env.DEPLOY_TOOL === "genestack") {
-        return `DEPLOY_TOOL=genestack GENESTACK_MODE=${env.GENESTACK_MODE} GENESTACK_CONFIRM_DEPLOY=${env.GENESTACK_CONFIRM_DEPLOY} INVENTORY=multinode-arm.ini scripts/03_deploy_genestack_arm.sh`;
+        return `SSH_USER=${env.SSH_USER} DEPLOY_TOOL=genestack GENESTACK_MODE=${env.GENESTACK_MODE} GENESTACK_PATH=${env.GENESTACK_PATH} GENESTACK_CONFIRM_DEPLOY=${env.GENESTACK_CONFIRM_DEPLOY} INVENTORY=multinode-arm.ini scripts/03_deploy_genestack_arm.sh`;
       }
-      return `OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} INVENTORY=multinode-arm.ini scripts/03_deploy_kolla_arm.sh`;
+      return `SSH_USER=${env.SSH_USER} OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} INVENTORY=multinode-arm.ini scripts/03_deploy_kolla_arm.sh`;
+    }
+
+    function validateCommand() {
+      const env = values();
+      if (env.DEPLOY_TOOL === "genestack") {
+        return `DEPLOY_TOOL=genestack GENESTACK_PATH=${env.GENESTACK_PATH} KUBECONFIG=${env.KUBECONFIG} GENESTACK_OPENRC=${env.GENESTACK_OPENRC} scripts/04_validate_genestack_arm.sh`;
+      }
+      return `OPENRC=${env.OPENRC} CIDR=${env.CIDR} GW=${env.GW} POOL_START=${env.POOL_START} POOL_END=${env.POOL_END} scripts/04_validate_arm_openstack.sh`;
+    }
+
+    function imageStageCommand() {
+      const env = values();
+      if (env.DEPLOY_TOOL === "genestack") {
+        return `DEPLOY_TOOL=genestack GENESTACK_PATH=${env.GENESTACK_PATH} KUBECONFIG=${env.KUBECONFIG} scripts/05_check_genestack_images.sh`;
+      }
+      return `OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} scripts/05_build_arm64_kolla_images.sh`;
+    }
+
+    function stageTitle(stage) {
+      const tool = values().DEPLOY_TOOL;
+      if (stage.id === "validate" && tool === "genestack") return "Validate Genestack Cloud";
+      if (stage.id === "images" && tool === "genestack") return "Check Genestack Images";
+      return stage.title;
+    }
+
+    function stageBody(stage) {
+      const tool = values().DEPLOY_TOOL;
+      if (stage.id === "validate" && tool === "genestack") {
+        return "Check Genestack checkout, Kubernetes access, Helm releases, OpenStack endpoint/openrc if present, and summarize readiness.";
+      }
+      if (stage.id === "images" && tool === "genestack") {
+        return "Inspect Genestack Kubernetes workload images and highlight ARM64 image-validation signals.";
+      }
+      return stage.body;
     }
 
     function selected(value, expected) {
@@ -2210,17 +2252,7 @@
       const knownReleases = ["2025.1", "2024.2", "2024.1"];
       const releaseChoice = knownReleases.includes(env.OPENSTACK_RELEASE) ? env.OPENSTACK_RELEASE : "custom";
       if (stage.id === "deploy") {
-        return `
-          <div class="stage-controls" aria-label="Deployment settings">
-            <p class="section-help wide">Deployment settings define which OpenStack installer runs and the management-network values passed into the deploy script.</p>
-            <label class="wide" for="deployTool">Deployment Tool
-              <select id="deployTool">
-                <option value="genestack" ${selected(env.DEPLOY_TOOL, "genestack")}>Genestack</option>
-                <option value="kolla" ${selected(env.DEPLOY_TOOL, "kolla")}>Kolla-Ansible</option>
-              </select>
-              <small class="field-help">Choose Genestack for Kubernetes/OpenStack-Helm, or Kolla-Ansible for the simpler containerized PoC path.</small>
-            </label>
-            <p class="hint wide">Genestack uses Kubernetes, OpenStack-Helm, Kustomize, and Helm. Keep Kolla as the simple default PoC path.</p>
+        const kollaFields = env.DEPLOY_TOOL === "kolla" ? `
             <label for="openstackReleaseChoice">OpenStack Release
               <select id="openstackReleaseChoice">
                 <option value="2025.1" ${selected(releaseChoice, "2025.1")}>2025.1 Epoxy</option>
@@ -2228,20 +2260,22 @@
                 <option value="2024.1" ${selected(releaseChoice, "2024.1")}>2024.1 Caracal</option>
                 <option value="custom" ${selected(releaseChoice, "custom")}>Custom</option>
               </select>
-              <small class="field-help">OpenStack branch or release exported as OPENSTACK_RELEASE for the deployment script.</small>
+              <small class="field-help">OpenStack branch or release exported as OPENSTACK_RELEASE for Kolla-Ansible.</small>
             </label>
             <label for="openstackReleaseCustom" ${releaseChoice === "custom" ? "" : "hidden"}>Custom Release
               <input id="openstackReleaseCustom" value="${escapeHtml(env.OPENSTACK_RELEASE)}">
-              <small class="field-help">Use this for a release not listed above, for example a specific stable branch name.</small>
+              <small class="field-help">Use this for a Kolla release not listed above, for example a specific stable branch name.</small>
             </label>
             <label for="vip">VIP
               <input id="vip" value="${escapeHtml(env.VIP)}">
-              <small class="field-help">Unused management-network address that OpenStack services advertise as the control-plane endpoint.</small>
+              <small class="field-help">Unused management-network address that Kolla services advertise as the control-plane endpoint.</small>
             </label>
             <label for="extIface">External Interface
               <input id="extIface" value="${escapeHtml(env.EXT_IFACE)}">
-              <small class="field-help">Linux NIC used for provider/external traffic, usually eth0, enp*, or the lab uplink.</small>
+              <small class="field-help">Linux NIC used by Kolla for management/provider traffic, usually eth0, enp*, or the lab uplink.</small>
             </label>
+        ` : "";
+        const genestackFields = env.DEPLOY_TOOL === "genestack" ? `
             <label for="genestackMode">Genestack Mode
               <select id="genestackMode">
                 <option value="aio" ${selected(env.GENESTACK_MODE, "aio")}>aio test cloud</option>
@@ -2249,15 +2283,55 @@
               </select>
               <small class="field-help">AIO is the small PoC profile; base is the broader HA-oriented Genestack starting point.</small>
             </label>
+            <label for="genestackPath">Genestack Path
+              <input id="genestackPath" value="${escapeHtml(env.GENESTACK_PATH)}">
+              <small class="field-help">Local checkout path where the Genestack repo is cloned or updated.</small>
+            </label>
             <label class="checkbox-line wide"><input id="genestackConfirm" type="checkbox" ${checked(env.GENESTACK_CONFIRM_DEPLOY)}> Allow Genestack bootstrap/deploy action</label>
             <p class="field-help wide">Safety gate for Genestack: leave unchecked to inspect the generated command without starting a guarded bootstrap/deploy run.</p>
+        ` : "";
+        return `
+          <div class="stage-controls" aria-label="Deployment settings">
+            <p class="section-help wide">Deployment settings change with the selected installer. Kolla uses OpenStack release, VIP, and interface. Genestack uses mode, repo path, and a guarded bootstrap switch.</p>
+            <label class="wide" for="deployTool">Deployment Tool
+              <select id="deployTool">
+                <option value="genestack" ${selected(env.DEPLOY_TOOL, "genestack")}>Genestack</option>
+                <option value="kolla" ${selected(env.DEPLOY_TOOL, "kolla")}>Kolla-Ansible</option>
+              </select>
+              <small class="field-help">Choose Genestack for Kubernetes/OpenStack-Helm, or Kolla-Ansible for the simpler containerized PoC path.</small>
+            </label>
+            <label class="wide" for="sshUser">SSH / Ansible User
+              <input id="sshUser" value="${escapeHtml(env.SSH_USER)}">
+              <small class="field-help">Linux account used to reach the ARM nodes for prereq scan, bootstrap, inventory generation, and deploy automation.</small>
+            </label>
+            ${kollaFields}
+            ${genestackFields}
           </div>
         `;
       }
       if (stage.id === "validate") {
+        if (env.DEPLOY_TOOL === "genestack") {
+          return `
+            <div class="stage-controls" aria-label="Genestack validation settings">
+              <p class="section-help wide">Genestack validation checks the repo checkout from Stage 05, Kubernetes access, Helm releases, and OpenStack API/openrc if available.</p>
+              <label class="wide" for="kubeconfig">Kubeconfig
+                <input id="kubeconfig" value="${escapeHtml(env.KUBECONFIG)}">
+                <small class="field-help">Kubernetes admin kubeconfig used to inspect Genestack cluster nodes, pods, and Helm releases.</small>
+              </label>
+              <label class="wide" for="genestackOpenrc">Genestack OpenRC
+                <input id="genestackOpenrc" value="${escapeHtml(env.GENESTACK_OPENRC)}">
+                <small class="field-help">Optional OpenStack credentials file. If present, validation also checks OpenStack service and endpoint lists.</small>
+              </label>
+            </div>
+          `;
+        }
         return `
           <div class="stage-controls" aria-label="Validation network settings">
-            <p class="section-help wide">Validation settings create the test provider network, boot an ARM64 VM, and check floating IP plus serial-console access.</p>
+            <p class="section-help wide">Kolla validation creates the test provider network, boots an ARM64 VM, and checks floating IP plus serial-console access.</p>
+            <label class="wide" for="openrc">Kolla OpenRC
+              <input id="openrc" value="${escapeHtml(env.OPENRC)}">
+              <small class="field-help">Admin credentials file generated by Kolla-Ansible and sourced before OpenStack CLI validation.</small>
+            </label>
             <label for="cidr">Validation CIDR
               <input id="cidr" value="${escapeHtml(env.CIDR)}">
               <small class="field-help">Subnet range used for the validation provider network.</small>
@@ -2411,9 +2485,9 @@
     function analyzeResults() {
       const sourceStages = stages.filter((stage) => !["result", "fix"].includes(stage.id));
       const summary = sourceStages.map((stage) => {
-        return `${stage.title}: ${stageStatus(stage)}`;
+        return `${stageTitle(stage)}: ${stageStatus(stage)}`;
       });
-      const errors = sourceStages.flatMap((stage) => importantLines(stageLogs.get(stage.id) || "").map((line) => `[${stage.title}] ${line}`));
+      const errors = sourceStages.flatMap((stage) => importantLines(stageLogs.get(stage.id) || "").map((line) => `[${stageTitle(stage)}] ${line}`));
       const output = [
         "$ analyze stage monitors",
         "",
@@ -2437,7 +2511,7 @@
 
       if (/Permission denied|publickey|Could not read from remote/i.test(allLogs)) suggestions.push("SSH/auth: verify SSH_USER, keys, GitHub/deploy keys, and passwordless sudo on every ARM node.");
       if (/No reachable|unreachable|timed out|Network is unreachable|Name or service not known/i.test(allLogs)) suggestions.push("Network: check laptop LAN, Pi/server IPs, switch/VLAN, firewall, and that SSH port 22 is reachable.");
-      if (/aarch64|arm64|architecture|exec format|no matching manifest|image/i.test(allLogs)) suggestions.push("ARM images: use ARM64 images only, set architecture=aarch64 metadata, and build/pull ARM64 Kolla images if missing.");
+      if (/aarch64|arm64|architecture|exec format|no matching manifest|image/i.test(allLogs)) suggestions.push("ARM images: use ARM64 images only, set architecture=aarch64 metadata, and build/pull or mirror ARM64 Kolla/Genestack images if missing.");
       if (/kvm|virtualization|libvirt|nova-compute/i.test(allLogs)) suggestions.push("Compute: enable virtualization/KVM where hardware supports it; on Raspberry Pi validate kernel modules and libvirt/nova logs.");
       if (/disk|space|No space|volume|cinder|lvm/i.test(allLogs)) suggestions.push("Storage: move PoC disks to SSD/NVMe, verify free space, volume group, and avoid SD cards for Cinder/Ceph experiments.");
       if (/interface|eth0|ovs|bridge|neutron|provider|floating|gateway/i.test(allLogs)) suggestions.push("Networking: confirm EXT_IFACE, provider CIDR/gateway/pool, OVS bridge state, and that the VIP is unused.");
@@ -2590,8 +2664,8 @@
         bootstrap: "Bootstrap",
         inventory: "Inventory",
         deploy: "Deploy",
-        validate: "Validate",
-        images: "Build Images",
+        validate: values().DEPLOY_TOOL === "genestack" ? "Validate Genestack" : "Validate Kolla",
+        images: values().DEPLOY_TOOL === "genestack" ? "Check Images" : "Build Images",
         result: "Result Stage",
         fix: "Fix & Retest"
       }[stage.id] || stage.title;
@@ -2622,8 +2696,8 @@
         node.innerHTML = `
           <div class="stage-index">${String(index + 1).padStart(2, "0")}</div>
           <div>
-            <h3>${stage.title}</h3>
-            <p>${stage.body}</p>
+            <h3>${stageTitle(stage)}</h3>
+            <p>${stageBody(stage)}</p>
             ${stageControls(stage)}
             <div class="commands">${commandText(stage)}</div>
           </div>
@@ -2649,7 +2723,7 @@
       if (copyId) {
         const stage = stages.find((item) => item.id === copyId);
         await navigator.clipboard.writeText(commandText(stage));
-        append(stage.id, `copied: ${stage.title}`);
+        append(stage.id, `copied: ${stageTitle(stage)}`);
       }
     });
 
@@ -2664,7 +2738,7 @@
       updatePocSummary();
     });
     document.addEventListener("input", (event) => {
-      if (!event.target.matches("#lanCidr, #sshUser, #openstackReleaseCustom, #vip, #extIface, #cidr, #gw, #poolStart, #poolEnd")) return;
+      if (!event.target.matches("#lanCidr, #sshUser, #openstackReleaseCustom, #vip, #extIface, #genestackPath, #kubeconfig, #openrc, #genestackOpenrc, #cidr, #gw, #poolStart, #poolEnd")) return;
       values();
       updatePocSummary();
     });

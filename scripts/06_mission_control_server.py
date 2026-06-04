@@ -33,7 +33,9 @@ STEPS = {
     "deploy": ["bash", "scripts/03_deploy_kolla_arm.sh"],
     "deploy_genestack": ["bash", "scripts/03_deploy_genestack_arm.sh"],
     "validate": ["bash", "scripts/04_validate_arm_openstack.sh"],
+    "validate_genestack": ["bash", "scripts/04_validate_genestack_arm.sh"],
     "images": ["bash", "scripts/05_build_arm64_kolla_images.sh"],
+    "images_genestack": ["bash", "scripts/05_check_genestack_images.sh"],
 }
 
 ENV_KEYS = {
@@ -45,8 +47,11 @@ ENV_KEYS = {
     "DEPLOY_TOOL",
     "GENESTACK_CONFIRM_DEPLOY",
     "GENESTACK_MODE",
+    "GENESTACK_OPENRC",
     "GENESTACK_PATH",
     "GENESTACK_REPO",
+    "KUBECONFIG",
+    "OPENRC",
     "GW",
     "POOL_START",
     "POOL_END",
@@ -333,6 +338,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if step == "deploy" and env.get("DEPLOY_TOOL") == "genestack":
             command = STEPS["deploy_genestack"]
+        elif step == "validate" and env.get("DEPLOY_TOOL") == "genestack":
+            command = STEPS["validate_genestack"]
+        elif step == "images" and env.get("DEPLOY_TOOL") == "genestack":
+            command = STEPS["images_genestack"]
         elif step == "inventory" and env.get("SSH_USER"):
             command = [*STEPS[step], "--ansible-user", env["SSH_USER"]]
         else:
