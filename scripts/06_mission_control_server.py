@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import ipaddress
 import json
 import os
 import subprocess
@@ -73,6 +75,8 @@ class Handler(BaseHTTPRequestHandler):
             payload = self._payload()
             if self.path == "/api/save-nodes":
                 self.save_nodes(payload)
+            elif self.path == "/api/scan-lan":
+                self.scan_lan(payload)
             elif self.path == "/api/run":
                 self.run_step(payload)
             else:
@@ -87,6 +91,74 @@ class Handler(BaseHTTPRequestHandler):
             return
         (ROOT / "nodes.txt").write_text(content + "\n", encoding="utf-8")
         self._json(200, {"output": "saved nodes.txt"})
+
+    def scan_lan(self, payload: dict[str, object]) -> None:
+        cidr = str(payload.get("cidr", "")).strip()
+        ssh_user = str(payload.get("sshUser", "ubuntu")).strip() or "ubuntu"
+        if not cidr:
+            self._json(400, {"error": "CIDR is required"})
+            return
+
+        network = ipaddress.ip_network(cidr, strict=False)
+        hosts = [str(ip) for ip in network.hosts()]
+        if len(hosts) > 1024:
+            self._json(400, {"error": "Scan range too large. Use /24 or smaller."})
+            return
+
+        def probe(ip: str) -> dict[str, object] | None:
+            ping = subprocess.run(
+                ["ping", "-c", "1", "-W", "1", ip],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            if ping.returncode != 0:
+                return None
+
+            ssh = subprocess.run(
+                [
+                    "ssh",
+                    "-o",
+                    "BatchMode=yes",
+                    "-o",
+                    "ConnectTimeout=2",
+                    "-o",
+                    "StrictHostKeyChecking=accept-new",
+                    f"{ssh_user}@{ip}",
+                    "printf '%s %s' \"$(hostname 2>/dev/null || echo unknown)\" \"$(uname -m 2>/dev/null || echo unknown)\"",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            hostname = "unknown"
+            arch = "unknown"
+            ssh_ok = ssh.returncode == 0
+            if ssh_ok:
+                parts = ssh.stdout.strip().split()
+                if parts:
+                    hostname = parts[0]
+                if len(parts) > 1:
+                    arch = parts[1]
+            arm = arch in {"aarch64", "arm64", "armv7l"}
+            return {
+                "ip": ip,
+                "hostname": hostname,
+                "arch": arch,
+                "ssh": ssh_ok,
+                "arm": arm,
+            }
+
+        found = []
+        with ThreadPoolExecutor(max_workers=64) as pool:
+            futures = [pool.submit(probe, ip) for ip in hosts]
+            for future in as_completed(futures):
+                row = future.result()
+                if row:
+                    found.append(row)
+
+        found.sort(key=lambda row: tuple(int(part) for part in str(row["ip"]).split(".")))
+        self._json(200, {"hosts": found})
 
     def run_step(self, payload: dict[str, object]) -> None:
         step = str(payload.get("step", ""))

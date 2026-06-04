@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>OPENSTACKK BROTHERS and SISTERS in ARM</title>
+  <title>BrothersInArms Mission Control</title>
   <style>
     :root {
       color-scheme: dark;
@@ -165,12 +165,55 @@
       outline: none;
     }
 
+    input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      accent-color: var(--cyan);
+    }
+
     textarea {
       min-height: 108px;
       resize: vertical;
       font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
       font-size: 0.84rem;
       line-height: 1.45;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 7px;
+      font-size: 0.82rem;
+    }
+
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid rgba(87, 230, 255, 0.14);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--cyan);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      min-height: 34px;
+      color: var(--text);
+      background: rgba(2, 6, 14, 0.78);
+      border: 1px solid rgba(87, 230, 255, 0.22);
+      border-radius: 6px;
+    }
+
+    .scan-box {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
     }
 
     input:focus, textarea:focus {
@@ -306,7 +349,7 @@
     <header>
       <section>
         <div class="title-bar">OPENSTACKK BROTHERS and SISTERS in ARM</div>
-        <h1>Mission Control</h1>
+        <h1>BrothersInArms Mission Control</h1>
         <p class="subtitle">A clean cockpit for the Raspberry Pi / ARM64 OpenStack PoC: edit node targets, generate inventory, launch controlled steps, and keep the terminal output in one place.</p>
       </section>
       <section class="status-strip" aria-label="PoC status">
@@ -319,6 +362,29 @@
     <section class="layout">
       <aside class="panel">
         <h2>Mission Variables</h2>
+        <label for="lanCidr">LAN Scout CIDR</label>
+        <input id="lanCidr" value="192.168.10.0/24">
+        <div class="button-row">
+          <button id="scanLan">Scan LAN</button>
+          <button class="ghost" id="useSelected">Use Selected</button>
+        </div>
+        <div class="scan-box">
+          <h2>Detected Hosts</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Use</th>
+                <th>IP</th>
+                <th>Host</th>
+                <th>Arch</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody id="scanResults">
+              <tr><td colspan="5">Run LAN Scout to discover candidates.</td></tr>
+            </tbody>
+          </table>
+        </div>
         <label for="nodes">nodes.txt</label>
         <textarea id="nodes">192.168.10.11 pi-os-ctrl controller
 192.168.10.12 pi-os-cmp1 compute</textarea>
@@ -361,8 +427,8 @@
               <button class="ghost" id="clearLog">Clear</button>
             </div>
           </div>
-          <pre id="output">Mission Control ready.
-Start with Save Nodes, then run Prereq Scan.</pre>
+          <pre id="output">BrothersInArms Mission Control ready.
+Start with LAN Scout, select ARM nodes, then save nodes.txt.</pre>
         </section>
       </section>
     </section>
@@ -370,6 +436,12 @@ Start with Save Nodes, then run Prereq Scan.</pre>
 
   <script>
     const stages = [
+      {
+        id: "scan",
+        title: "LAN Scout",
+        body: "Scan the LAN, detect reachable hosts, probe SSH for architecture, and choose which IPs become ARM OpenStack nodes.",
+        command: "scan $LAN_CIDR and select ARM nodes"
+      },
       {
         id: "prereqs",
         title: "Prereq Scan",
@@ -411,9 +483,11 @@ Start with Save Nodes, then run Prereq Scan.</pre>
 
     const $ = (id) => document.getElementById(id);
     const output = $("output");
+    let scanRows = [];
 
     function values() {
       return {
+        LAN_CIDR: $("lanCidr").value.trim(),
         SSH_USER: $("sshUser").value.trim(),
         OPENSTACK_RELEASE: $("openstackRelease").value.trim(),
         VIP: $("vip").value.trim(),
@@ -423,6 +497,16 @@ Start with Save Nodes, then run Prereq Scan.</pre>
         POOL_START: $("poolStart").value.trim(),
         POOL_END: $("poolEnd").value.trim()
       };
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
     }
 
     function commandText(stage) {
@@ -453,6 +537,10 @@ Start with Save Nodes, then run Prereq Scan.</pre>
     }
 
     async function runStage(stage) {
+      if (stage.id === "scan") {
+        await scanLan();
+        return;
+      }
       if (stage.danger && !confirm("Deploy will change remote ARM nodes and /etc/kolla. Continue?")) return;
       setBusy(true);
       append(`\n$ ${commandText(stage)}`);
@@ -465,6 +553,64 @@ Start with Save Nodes, then run Prereq Scan.</pre>
       } finally {
         setBusy(false);
       }
+    }
+
+    function renderScanRows(rows) {
+      scanRows = rows;
+      if (!rows.length) {
+        $("scanResults").innerHTML = `<tr><td colspan="5">No reachable hosts found.</td></tr>`;
+        return;
+      }
+      $("scanResults").innerHTML = rows.map((row, index) => `
+        <tr>
+          <td><input type="checkbox" data-scan-use="${index}" ${row.arm ? "checked" : ""}></td>
+          <td>${escapeHtml(row.ip)}</td>
+          <td><input value="${escapeHtml(row.hostname === "unknown" ? `arm-node-${index + 1}` : row.hostname)}" data-scan-host="${index}"></td>
+          <td>${row.arm ? "ARM" : escapeHtml(row.arch)}${row.ssh ? "" : " / SSH closed"}</td>
+          <td>
+            <select data-scan-role="${index}">
+              <option value="controller" ${index === 0 ? "selected" : ""}>controller</option>
+              <option value="compute" ${index > 0 ? "selected" : ""}>compute</option>
+              <option value="storage">storage</option>
+              <option value="all">all</option>
+            </select>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    async function scanLan() {
+      setBusy(true);
+      append(`\nLAN Scout: scanning ${$("lanCidr").value.trim()} as ${$("sshUser").value.trim()}`);
+      try {
+        const data = await api("/api/scan-lan", {
+          cidr: $("lanCidr").value.trim(),
+          sshUser: $("sshUser").value.trim()
+        });
+        renderScanRows(data.hosts || []);
+        append(`found ${data.hosts.length} reachable host(s)`);
+      } catch (error) {
+        append(`ERROR: ${error.message}`);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function useSelectedRows() {
+      const lines = [];
+      scanRows.forEach((row, index) => {
+        const use = document.querySelector(`[data-scan-use="${index}"]`);
+        if (!use || !use.checked) return;
+        const host = document.querySelector(`[data-scan-host="${index}"]`).value.trim();
+        const role = document.querySelector(`[data-scan-role="${index}"]`).value;
+        lines.push(`${row.ip} ${host || `arm-node-${index + 1}`} ${role}`);
+      });
+      if (!lines.length) {
+        append("select at least one discovered host first");
+        return;
+      }
+      $("nodes").value = lines.join("\n");
+      append("nodes.txt draft updated from selected LAN Scout rows");
     }
 
     function renderStages() {
@@ -481,7 +627,7 @@ Start with Save Nodes, then run Prereq Scan.</pre>
             <div class="commands">${commandText(stage)}</div>
           </div>
           <div class="button-row">
-            <button class="${stage.danger ? "danger" : ""}" data-run="${stage.id}">${stage.danger ? "Deploy" : "Run"}</button>
+            <button class="${stage.danger ? "danger" : ""}" data-run="${stage.id}">${stage.id === "scan" ? "Scan" : stage.danger ? "Deploy" : "Run"}</button>
             <button class="ghost" data-copy="${stage.id}">Copy</button>
           </div>
         `;
@@ -512,11 +658,14 @@ Start with Save Nodes, then run Prereq Scan.</pre>
       }
     });
 
+    $("scanLan").addEventListener("click", scanLan);
+    $("useSelected").addEventListener("click", useSelectedRows);
+
     $("loadExample").addEventListener("click", () => {
       $("nodes").value = "192.168.10.11 pi-os-ctrl controller\n192.168.10.12 pi-os-cmp1 compute";
     });
 
-    $("clearLog").addEventListener("click", () => output.textContent = "Mission Control ready.");
+    $("clearLog").addEventListener("click", () => output.textContent = "BrothersInArms Mission Control ready.");
     document.querySelectorAll("input").forEach((input) => input.addEventListener("input", renderStages));
     renderStages();
 

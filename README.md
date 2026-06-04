@@ -1,10 +1,10 @@
 # ARM OpenStack PoC
 
-**OPENSTACKK BROTHERS and SISTERS in ARM** is a small mission-control style toolkit for proving that OpenStack can run on ARM64 lab hardware.
+**BrothersInArms Mission Control** is a small mission-control style toolkit for proving that OpenStack can run on ARM64 lab hardware.
 
 It gives you two ways to operate:
 
-- **Mission Control Web UI**: a simple neon cockpit with the `OPENSTACKK BROTHERS and SISTERS in ARM` title bar, node editing, and buttons for each PoC stage.
+- **Mission Control Web UI**: a simple neon cockpit with the `OPENSTACKK BROTHERS and SISTERS in ARM` title bar, LAN discovery, node selection, and buttons for each PoC stage.
 - **CLI scripts**: direct Bash/Python scripts for repeatable terminal-driven deployment.
 
 The target hardware is Raspberry Pi 5 for low-cost lab/demo work and server-grade ARM64 hardware for serious validation.
@@ -35,18 +35,31 @@ Open:
 http://127.0.0.1:8787
 ```
 
-The UI is localhost-only and runs an allowlist of PoC steps:
+The UI is localhost-only and runs an allowlist of PoC steps. The first stage scans your LAN, shows reachable candidates in a table, and lets you choose which IPs are ARM servers or Raspberry Pis for the PoC.
 
 | Stage | Button | What It Runs |
 |---|---|---|
-| Prereq Scan | Run | `scripts/00_check_prereqs.sh` |
-| Bootstrap ARM Nodes | Run | `scripts/01_bootstrap_arm_nodes.sh` |
-| Generate Inventory | Run | `scripts/02_generate_inventory.py` |
-| Deploy Kolla ARM | Deploy | `scripts/03_deploy_kolla_arm.sh` |
-| Validate Cloud | Run | `scripts/04_validate_arm_openstack.sh` |
-| Build ARM64 Images | Run | `scripts/05_build_arm64_kolla_images.sh` |
+| 01 LAN Scout | Scan | LAN ping sweep plus SSH architecture probe |
+| 02 Prereq Scan | Run | `scripts/00_check_prereqs.sh` |
+| 03 Bootstrap ARM Nodes | Run | `scripts/01_bootstrap_arm_nodes.sh` |
+| 04 Generate Inventory | Run | `scripts/02_generate_inventory.py` |
+| 05 Deploy Kolla ARM | Deploy | `scripts/03_deploy_kolla_arm.sh` |
+| 06 Validate Cloud | Run | `scripts/04_validate_arm_openstack.sh` |
+| 07 Build ARM64 Images | Run | `scripts/05_build_arm64_kolla_images.sh` |
 
 Use the UI for demos and guided operation. Use the CLI commands below when you want exact terminal control.
+
+## Mission Control Flow
+
+1. **LAN Scout**: enter a CIDR such as `192.168.10.0/24`, scan the LAN, then select which discovered IPs should be used.
+2. **Choose Roles**: assign `controller`, `compute`, `storage`, or `all` in the results table.
+3. **Save Nodes**: generate `nodes.txt` from the selected rows.
+4. **Prereq Scan**: verify local tools, node file format, and SSH reachability.
+5. **Bootstrap ARM Nodes**: install base packages and check KVM/Open vSwitch readiness.
+6. **Generate Inventory**: create `multinode-arm.ini` for Kolla-Ansible.
+7. **Deploy Kolla ARM**: run Kolla bootstrap, prechecks, deploy, and post-deploy.
+8. **Validate Cloud**: upload an ARM64 image, create a tiny flavor/network, boot a VM, and print the serial console URL.
+9. **Build ARM64 Images**: optional path for private ARM64 Kolla images.
 
 ## Why / What / So What / What Now
 
