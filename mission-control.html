@@ -2207,6 +2207,11 @@
     let scanRows = [];
     let selectedNodeRows = [];
     let splitDrag = null;
+    const ENDPOINT_NAME_CACHE_VERSION = "real-names-first-v2";
+    if (localStorage.getItem("openarmsEndpointNameCacheVersion") !== ENDPOINT_NAME_CACHE_VERSION) {
+      localStorage.removeItem("openarmsEndpointNames");
+      localStorage.setItem("openarmsEndpointNameCacheVersion", ENDPOINT_NAME_CACHE_VERSION);
+    }
     let endpointNameCache = JSON.parse(localStorage.getItem("openarmsEndpointNames") || "{}");
     const currentValues = {
       LAN_CIDR: "auto",
@@ -2877,6 +2882,10 @@
         renderScanRows(data.hosts || []);
         selectedNodeRows = selectedRowsFromTable();
         updatePocSummary();
+        const namedHosts = (data.hosts || []).filter((host) => host.hostname && host.hostname !== "unknown");
+        if (namedHosts.length) {
+          append("scan", `resolved names: ${namedHosts.map((host) => `${host.ip}=${host.hostname}`).join(", ")}`);
+        }
         append("scan", `found ${data.hosts.length} reachable host(s)`);
         if (data.hosts.length) markStagePassed("scan");
         else markStageAttention("scan");
