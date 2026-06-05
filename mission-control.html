@@ -2235,9 +2235,9 @@
     }
 
     function displayHostname(row) {
-      const cached = endpointNameCache[row.ip];
-      if (cached) return cached;
       if (row.hostname && row.hostname !== "unknown") return row.hostname;
+      const cached = endpointNameCache[row.ip];
+      if (cached && cached !== endpointAlias(row.ip)) return cached;
       return endpointAlias(row.ip);
     }
 
@@ -2247,6 +2247,10 @@
         const row = scanRows[index];
         const value = input.value.trim();
         if (!row || !value) return;
+        if (value === endpointAlias(row.ip)) {
+          delete endpointNameCache[row.ip];
+          return;
+        }
         endpointNameCache[row.ip] = value;
       });
       localStorage.setItem("openarmsEndpointNames", JSON.stringify(endpointNameCache));
@@ -2836,6 +2840,7 @@
       scanRows = rows;
       rows.forEach((row) => {
         if (row.hostname && row.hostname !== "unknown") endpointNameCache[row.ip] = row.hostname;
+        else if (endpointNameCache[row.ip] === endpointAlias(row.ip)) delete endpointNameCache[row.ip];
       });
       localStorage.setItem("openarmsEndpointNames", JSON.stringify(endpointNameCache));
       if (!rows.length) {

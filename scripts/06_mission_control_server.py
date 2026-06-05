@@ -116,7 +116,7 @@ def local_lan_networks() -> list[ipaddress.IPv4Network]:
     return unique
 
 
-def resolve_endpoint_name(ip: str) -> str:
+def resolve_endpoint_name(ip: str) -> tuple[str, str]:
     for hosts_path in (
         Path("/etc/hosts"),
         Path("/mnt/c/Windows/System32/drivers/etc/hosts"),
@@ -131,14 +131,14 @@ def resolve_endpoint_name(ip: str) -> str:
                     continue
                 parts = clean.split()
                 if len(parts) >= 2 and parts[0] == ip:
-                    return parts[1].strip(".")
+                    return parts[1].strip("."), "hosts"
         except OSError:
             continue
 
     try:
         name = socket.gethostbyaddr(ip)[0].strip(".")
         if name:
-            return name
+            return name, "reverse-dns"
     except (OSError, socket.herror):
         pass
 
@@ -167,7 +167,7 @@ def resolve_endpoint_name(ip: str) -> str:
                 continue
             name = result.stdout.strip().replace("\r", "").strip(".")
             if name:
-                return name
+                return name, "windows-dns"
 
     nbtstat = shutil.which("nbtstat.exe") or shutil.which("nbtstat")
     if nbtstat:
@@ -180,16 +180,16 @@ def resolve_endpoint_name(ip: str) -> str:
                 timeout=4,
             )
         except subprocess.TimeoutExpired:
-            return "unknown"
+            return "unknown", "none"
         for line in result.stdout.splitlines():
             clean = " ".join(line.strip().split())
             if "<00>" not in clean or "UNIQUE" not in clean:
                 continue
             name = clean.split("<00>", 1)[0].strip()
             if name and not name.startswith("__"):
-                return name
+                return name, "netbios"
 
-    return "unknown"
+    return "unknown", "none"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -321,12 +321,14 @@ class Handler(BaseHTTPRequestHandler):
                 cores = facts.get("CORES", cores)
                 ram = facts.get("RAM", ram)
                 disk = facts.get("DISK", disk) or "unknown"
+            name_source = "ssh" if hostname != "unknown" else "none"
             if hostname == "unknown":
-                hostname = resolve_endpoint_name(ip)
+                hostname, name_source = resolve_endpoint_name(ip)
             arm = arch in {"aarch64", "arm64", "armv7l"}
             return {
                 "ip": ip,
                 "hostname": hostname,
+                "name_source": name_source,
                 "arch": arch,
                 "os": os_name,
                 "model": model,
