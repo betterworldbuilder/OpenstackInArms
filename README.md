@@ -50,10 +50,12 @@ The UI is localhost-only. It runs an allowlist of PoC actions and does not expos
 | 01 LAN Scout | Scan | Scan a CIDR, discover reachable IPs, probe SSH, and detect ARM candidates |
 | 02 Prereq Scan | Run | Check local tools, node file format, and SSH reachability |
 | 03 Bootstrap Cloud Nodes | Run | Install base packages and check KVM/Open vSwitch readiness on ARM/x86 nodes |
-| 04 Generate Inventory | Run | Generate `multinode-arm.ini` for Kolla-Ansible |
-| 05 Deploy Kolla ARM | Deploy | Run Kolla bootstrap, prechecks, deploy, and post-deploy |
-| 06 Validate Cloud | Run | Upload ARM64 image, create flavor/network, boot VM, show serial console |
-| 07 Build ARM64 Images | Run | Optional private ARM64 Kolla image build |
+| 04 Generate Inventory | Run | Generate `multinode-arm.ini` for the selected mission path |
+| 05 Deploy OpenStack ARM | Deploy | Deploy with Kolla-Ansible or Genestack |
+| 06 Validate Cloud | Run | Validate OpenStack or Genestack cloud health |
+| 07 Images | Run | Build/check ARM64 image readiness for the selected path |
+| 08 Result Stage | Analyze | Summarize stage monitors, working signals, and errors |
+| 09 Hardware & Software Fix | Suggest | Suggest config changes and loop back to retest |
 
 ### LAN Scout
 
@@ -65,9 +67,16 @@ The UI is localhost-only. It runs an allowlist of PoC actions and does not expos
 6. Click **Use Selected** to draft `nodes.txt`.
 7. Click **Save Nodes**.
 
-### OpenStack Release Picker
+### Mission Path And Release Picker
 
-The Web UI lets the user choose the release before deployment.
+Before Stage 01, choose one mission path:
+
+| Path | Release selector | What it drives |
+|---|---|---|
+| Kolla-Ansible | OpenStack Release | `OPENSTACK_RELEASE` and `KOLLA_ANSIBLE_SOURCE` |
+| Genestack | OpenStack Release dropdown backed by Genestack branch/tag refs | `GENESTACK_REF` |
+
+For **Kolla-Ansible**, the Web UI lets the user choose the OpenStack release before deployment.
 
 | Release | Name | Notes |
 |---|---|---|
@@ -82,7 +91,14 @@ OPENSTACK_RELEASE=<selected-release>
 KOLLA_ANSIBLE_SOURCE=git+https://opendev.org/openstack/kolla-ansible@stable/<selected-release>
 ```
 
-For the Genestack path, the repository URL stays stable while `GENESTACK_REF` selects the branch, tag, or commit. Stage 05 includes a **Refresh Genestack Refs** button that reads the current branches and tags from `https://github.com/rackerlabs/genestack`.
+For **Genestack**, the repo URL stays stable while the Stage 05 **OpenStack Release** dropdown selects `GENESTACK_REF`, the Genestack branch, tag, or commit to check out:
+
+```bash
+GENESTACK_REPO=https://github.com/rackerlabs/genestack
+GENESTACK_REF=release-2026.1
+```
+
+Stage 05 includes a **Refresh Genestack Refs** button that runs `git ls-remote --heads --tags` against `GENESTACK_REPO` and updates the dropdown from the current branches and tags.
 
 ## Manual Mode
 
@@ -111,8 +127,11 @@ The deployment script installs Kolla-Ansible from `stable/${OPENSTACK_RELEASE}` 
 │   ├── 01_bootstrap_arm_nodes.sh      # legacy wrapper
 │   ├── 02_generate_inventory.py
 │   ├── 03_deploy_kolla_arm.sh
+│   ├── 03_deploy_genestack_arm.sh
 │   ├── 04_validate_arm_openstack.sh
+│   ├── 04_validate_genestack_arm.sh
 │   ├── 05_build_arm64_kolla_images.sh
+│   ├── 05_check_genestack_images.sh
 │   ├── 06_mission_control_server.py
 │   └── lib/common.sh
 └── docs/
@@ -174,10 +193,11 @@ python3 scripts/02_generate_inventory.py \
 
 Set an unused VIP in the same management network and choose the OpenStack release.
 
-Default:
+Kolla-Ansible default:
 
 ```bash
 OPENSTACK_RELEASE=2025.1 \
+KOLLA_ANSIBLE_SOURCE=git+https://opendev.org/openstack/kolla-ansible@stable/2025.1 \
 VIP=192.168.10.250 \
 EXT_IFACE=eth0 \
 INVENTORY=multinode-arm.ini \
@@ -193,6 +213,24 @@ EXT_IFACE=eth0 \
 INVENTORY=multinode-arm.ini \
 scripts/03_deploy_kolla_arm.sh
 ```
+
+Genestack example:
+
+```bash
+SSH_USER=ubuntu \
+OPENSTACK_RELEASE=2025.1 \
+VIP=192.168.10.250 \
+EXT_IFACE=eth0 \
+GENESTACK_REPO=https://github.com/rackerlabs/genestack \
+GENESTACK_REF=release-2026.1 \
+GENESTACK_MODE=aio \
+GENESTACK_PATH=/opt/genestack \
+GENESTACK_CONFIRM_DEPLOY=no \
+INVENTORY=multinode-arm.ini \
+scripts/03_deploy_genestack_arm.sh
+```
+
+Keep `GENESTACK_CONFIRM_DEPLOY=no` for a safe preflight. Set it to `yes` only when you are ready for the guarded Genestack bootstrap path.
 
 ## Manual Step 6: Validate ARM OpenStack
 
