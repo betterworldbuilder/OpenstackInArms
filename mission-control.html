@@ -1753,7 +1753,7 @@
     }
 
     .scan-box table {
-      min-width: 680px;
+      min-width: 1120px;
       table-layout: auto;
     }
 
@@ -1773,6 +1773,21 @@
       min-width: 220px;
     }
 
+    .scan-box th:nth-child(4),
+    .scan-box td:nth-child(4) {
+      min-width: 170px;
+    }
+
+    .scan-box th:nth-child(5),
+    .scan-box td:nth-child(5) {
+      min-width: 210px;
+    }
+
+    .scan-box th:nth-child(6),
+    .scan-box td:nth-child(6) {
+      min-width: 150px;
+    }
+
     .scan-box td input[data-scan-host] {
       min-width: 210px;
       width: 100%;
@@ -1780,6 +1795,22 @@
 
     .scan-box td select {
       min-width: 126px;
+    }
+
+    .endpoint-kind {
+      color: #ecfbff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 900;
+    }
+
+    .endpoint-note {
+      display: block;
+      margin-top: 3px;
+      color: #9fb9d0;
+      font-size: 0.64rem;
+      line-height: 1.25;
+      white-space: normal;
     }
 
     .console {
@@ -2112,12 +2143,14 @@
                 <th>Use</th>
                 <th>IP</th>
                 <th>Name / Host</th>
-                <th>Arch</th>
-                <th>Role</th>
+                <th>Endpoint Type</th>
+                <th>LAN / USB / PCI Visibility</th>
+                <th>Console</th>
+                <th>OpenStack Role</th>
               </tr>
             </thead>
             <tbody id="scanResults">
-              <tr><td colspan="5">Run Where are my Arms? to discover candidates.</td></tr>
+              <tr><td colspan="7">Run Where are my Arms? to discover candidates.</td></tr>
             </tbody>
           </table>
         </div>
@@ -2622,6 +2655,76 @@
       return `${model} | ${os} | CPU ${cpu} | RAM ${ram} | Disk ${disk}`;
     }
 
+    function classifyEndpoint(row) {
+      if (row.endpoint_type && row.visibility && row.console_method && row.openstack_role) {
+        return {
+          type: row.endpoint_type,
+          visibility: row.visibility,
+          console: row.console_method,
+          suggestedRole: row.openstack_role,
+          usable: row.openstack_role !== "exclude"
+        };
+      }
+
+      const text = [
+        row.hostname,
+        row.model,
+        row.os,
+        row.cpu,
+        row.arch
+      ].join(" ").toLowerCase();
+      const arch = String(row.arch || "").toLowerCase();
+      const hasSsh = Boolean(row.ssh);
+      const isArm = ["aarch64", "arm64", "armv7l"].includes(arch);
+      const isX86 = /x86_64|amd64|i386|i686/.test(arch);
+      const isPi = /raspberry|raspberry pi|cortex-a76|bcm2712/.test(text);
+      const isConsumer = /router|gateway|android|phone|speaker|wiim|denon|sonos|printer|chromecast|tv|roku|iphone|ipad/.test(text);
+
+      if (hasSsh && isPi) {
+        return {
+          type: "Raspberry Pi with SSH",
+          visibility: "Full details via SSH",
+          console: "ssh + serial",
+          suggestedRole: "compute",
+          usable: true
+        };
+      }
+      if (hasSsh && isArm) {
+        return {
+          type: "ARM server with SSH",
+          visibility: "Full details via SSH",
+          console: "ssh + serial or bmc/ipmi",
+          suggestedRole: "compute",
+          usable: true
+        };
+      }
+      if (hasSsh && isX86) {
+        return {
+          type: "x86 server with SSH",
+          visibility: "Full details via SSH",
+          console: "ssh, vnc, or bmc/ipmi",
+          suggestedRole: "compute",
+          usable: true
+        };
+      }
+      if (isConsumer) {
+        return {
+          type: "Router / phone / speaker",
+          visibility: "Usually no hardware facts",
+          console: "none",
+          suggestedRole: "exclude",
+          usable: false
+        };
+      }
+      return {
+        type: "SSH-closed endpoint",
+        visibility: "Limited to IP/hostname/port scan",
+        console: "none or unknown",
+        suggestedRole: "exclude",
+        usable: false
+      };
+    }
+
     function selectedRowsFromTable() {
       return scanRows.filter((row, index) => {
         const use = document.querySelector(`[data-scan-use="${index}"]`);
@@ -2629,7 +2732,7 @@
       }).map((row) => {
         const originalIndex = scanRows.indexOf(row);
         const host = document.querySelector(`[data-scan-host="${originalIndex}"]`)?.value.trim();
-        const role = document.querySelector(`[data-scan-role="${originalIndex}"]`)?.value || "compute";
+        const role = document.querySelector(`[data-scan-role="${originalIndex}"]`)?.value || "exclude";
         return { ...row, hostname: host || displayHostname(row), role };
       });
     }
@@ -2641,7 +2744,8 @@
         const use = document.querySelector(`[data-scan-use="${index}"]`);
         if (!use || !use.checked) return;
         const host = document.querySelector(`[data-scan-host="${index}"]`)?.value.trim();
-        const role = document.querySelector(`[data-scan-role="${index}"]`)?.value || "compute";
+        const role = document.querySelector(`[data-scan-role="${index}"]`)?.value || "exclude";
+        if (role === "exclude") return;
         const hostname = host || displayHostname(row);
         rows.push({ ...row, hostname, role });
         lines.push(`${row.ip} ${hostname} ${role}`);
@@ -2849,25 +2953,32 @@
       });
       localStorage.setItem("openarmsEndpointNames", JSON.stringify(endpointNameCache));
       if (!rows.length) {
-        $("scanResults").innerHTML = `<tr><td colspan="5">No reachable hosts found.</td></tr>`;
+        $("scanResults").innerHTML = `<tr><td colspan="7">No reachable hosts found.</td></tr>`;
         return;
       }
-      $("scanResults").innerHTML = rows.map((row, index) => `
-        <tr>
-          <td><input type="checkbox" data-scan-use="${index}" ${row.arm ? "checked" : ""}></td>
+      $("scanResults").innerHTML = rows.map((row, index) => {
+        const info = classifyEndpoint(row);
+        const selectedRole = row.role || info.suggestedRole;
+        return `
+        <tr data-endpoint-type="${escapeHtml(info.type)}">
+          <td><input type="checkbox" data-scan-use="${index}" ${info.usable ? "checked" : ""}></td>
           <td>${escapeHtml(row.ip)}</td>
           <td><input title="${escapeHtml(row.hostname === "unknown" ? "No DNS/SSH/NetBIOS name resolved; restored cached name or generated endpoint alias" : row.hostname)}" value="${escapeHtml(displayHostname(row))}" data-scan-host="${index}"></td>
-          <td>${row.arm ? "ARM" : escapeHtml(row.arch)}${row.ssh ? "" : " / SSH closed"}</td>
+          <td><span class="endpoint-kind">${escapeHtml(info.type)}</span><span class="endpoint-note">${escapeHtml(row.arch || "unknown")}${row.ssh ? " / SSH open" : " / SSH closed"}</span></td>
+          <td>${escapeHtml(info.visibility)}</td>
+          <td>${escapeHtml(info.console)}</td>
           <td>
             <select data-scan-role="${index}">
-              <option value="controller" ${index === 0 ? "selected" : ""}>controller</option>
-              <option value="compute" ${index > 0 ? "selected" : ""}>compute</option>
-              <option value="storage">storage</option>
-              <option value="all">all</option>
+              <option value="exclude" ${selectedRole === "exclude" ? "selected" : ""}>exclude</option>
+              <option value="controller" ${selectedRole === "controller" ? "selected" : ""}>controller</option>
+              <option value="compute" ${selectedRole === "compute" ? "selected" : ""}>compute</option>
+              <option value="storage" ${selectedRole === "storage" ? "selected" : ""}>storage</option>
+              <option value="all" ${selectedRole === "all" ? "selected" : ""}>all</option>
             </select>
           </td>
         </tr>
-      `).join("");
+      `;
+      }).join("");
     }
 
     async function scanLan() {
@@ -3004,6 +3115,10 @@
       updatePocSummary();
     });
     $("scanResults").addEventListener("change", () => {
+      document.querySelectorAll("[data-scan-role]").forEach((select) => {
+        const checkbox = document.querySelector(`[data-scan-use="${select.dataset.scanRole}"]`);
+        if (checkbox && select.value === "exclude") checkbox.checked = false;
+      });
       rememberEndpointNames();
       selectedNodeRows = selectedRowsFromTable();
       updatePocSummary();

@@ -270,6 +270,58 @@ foreach ($ip in $ips) {{
     return resolved
 
 
+def classify_endpoint(row: dict[str, object]) -> dict[str, str]:
+    hostname = str(row.get("hostname", ""))
+    model = str(row.get("model", ""))
+    os_name = str(row.get("os", ""))
+    cpu = str(row.get("cpu", ""))
+    arch = str(row.get("arch", "")).lower()
+    text = f"{hostname} {model} {os_name} {cpu} {arch}".lower()
+    ssh_ok = bool(row.get("ssh"))
+    is_arm = arch in {"aarch64", "arm64", "armv7l"}
+    is_x86 = arch in {"x86_64", "amd64", "i386", "i686"}
+    is_pi = any(token in text for token in ("raspberry", "raspberry pi", "cortex-a76", "bcm2712"))
+    is_consumer = any(
+        token in text
+        for token in ("router", "gateway", "android", "phone", "speaker", "wiim", "denon", "sonos", "printer", "chromecast", "tv", "roku", "iphone", "ipad")
+    )
+
+    if ssh_ok and is_pi:
+        return {
+            "endpoint_type": "Raspberry Pi with SSH",
+            "visibility": "Full details via SSH",
+            "console_method": "ssh + serial",
+            "openstack_role": "compute",
+        }
+    if ssh_ok and is_arm:
+        return {
+            "endpoint_type": "ARM server with SSH",
+            "visibility": "Full details via SSH",
+            "console_method": "ssh + serial or bmc/ipmi",
+            "openstack_role": "compute",
+        }
+    if ssh_ok and is_x86:
+        return {
+            "endpoint_type": "x86 server with SSH",
+            "visibility": "Full details via SSH",
+            "console_method": "ssh, vnc, or bmc/ipmi",
+            "openstack_role": "compute",
+        }
+    if is_consumer:
+        return {
+            "endpoint_type": "Router / phone / speaker",
+            "visibility": "Usually no hardware facts",
+            "console_method": "none",
+            "openstack_role": "exclude",
+        }
+    return {
+        "endpoint_type": "SSH-closed endpoint",
+        "visibility": "Limited to IP/hostname/port scan",
+        "console_method": "none or unknown",
+        "openstack_role": "exclude",
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         print(f"[mission-control] {self.address_string()} {fmt % args}")
@@ -440,6 +492,7 @@ class Handler(BaseHTTPRequestHandler):
             name = name_map.get(str(row["ip"]))
             if row["hostname"] == "unknown" and name:
                 row["hostname"], row["name_source"] = name
+            row.update(classify_endpoint(row))
         self._json(200, {"cidrs": [str(network) for network in networks], "hosts": found})
 
     def run_step(self, payload: dict[str, object]) -> None:
