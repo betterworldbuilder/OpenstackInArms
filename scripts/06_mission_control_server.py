@@ -192,6 +192,84 @@ def resolve_endpoint_name(ip: str) -> tuple[str, str]:
     return "unknown", "none"
 
 
+def resolve_endpoint_names(ips: list[str]) -> dict[str, tuple[str, str]]:
+    resolved: dict[str, tuple[str, str]] = {}
+    wanted = set(ips)
+
+    for hosts_path in (
+        Path("/etc/hosts"),
+        Path("/mnt/c/Windows/System32/drivers/etc/hosts"),
+        Path(r"C:\Windows\System32\drivers\etc\hosts"),
+    ):
+        if not hosts_path.exists():
+            continue
+        try:
+            for line in hosts_path.read_text(errors="ignore").splitlines():
+                clean = line.split("#", 1)[0].strip()
+                if not clean:
+                    continue
+                parts = clean.split()
+                if len(parts) >= 2 and parts[0] in wanted and parts[0] not in resolved:
+                    resolved[parts[0]] = (parts[1].strip("."), "hosts")
+        except OSError:
+            continue
+
+    for ip in ips:
+        if ip in resolved:
+            continue
+        try:
+            name = socket.gethostbyaddr(ip)[0].strip(".")
+            if name:
+                resolved[ip] = (name, "reverse-dns")
+        except (OSError, socket.herror):
+            pass
+
+    pending = [ip for ip in ips if ip not in resolved]
+    if pending and shutil.which("powershell.exe"):
+        ip_json = json.dumps(pending)
+        ps_script = f"""
+$ips = @'
+{ip_json}
+'@ | ConvertFrom-Json
+foreach ($ip in $ips) {{
+  $name = $null
+  try {{
+    $name = Resolve-DnsName -Name $ip -Type PTR -QuickTimeout -ErrorAction SilentlyContinue |
+      Where-Object {{ $_.NameHost }} |
+      Select-Object -First 1 -ExpandProperty NameHost
+  }} catch {{}}
+  if (-not $name) {{
+    try {{
+      $name = Resolve-DnsName -Name $ip -QuickTimeout -ErrorAction SilentlyContinue |
+        Where-Object {{ $_.NameHost }} |
+        Select-Object -First 1 -ExpandProperty NameHost
+    }} catch {{}}
+  }}
+  if ($name) {{ "$ip`t$name" }}
+}}
+"""
+        try:
+            result = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-Command", ps_script],
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=max(8, min(30, len(pending) * 3)),
+            )
+            for line in result.stdout.splitlines():
+                if "\t" not in line:
+                    continue
+                ip, name = line.split("\t", 1)
+                ip = ip.strip()
+                name = name.strip().replace("\r", "").strip(".")
+                if ip in wanted and name and ip not in resolved:
+                    resolved[ip] = (name, "windows-dns")
+        except subprocess.TimeoutExpired:
+            pass
+
+    return resolved
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: object) -> None:
         print(f"[mission-control] {self.address_string()} {fmt % args}")
@@ -322,8 +400,6 @@ class Handler(BaseHTTPRequestHandler):
                 ram = facts.get("RAM", ram)
                 disk = facts.get("DISK", disk) or "unknown"
             name_source = "ssh" if hostname != "unknown" else "none"
-            if hostname == "unknown":
-                hostname, name_source = resolve_endpoint_name(ip)
             arm = arch in {"aarch64", "arm64", "armv7l"}
             return {
                 "ip": ip,
@@ -349,6 +425,21 @@ class Handler(BaseHTTPRequestHandler):
                     found.append(row)
 
         found.sort(key=lambda row: tuple(int(part) for part in str(row["ip"]).split(".")))
+
+        unresolved = [str(row["ip"]) for row in found if row["hostname"] == "unknown"]
+        name_map: dict[str, tuple[str, str]] = {}
+        if unresolved:
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                futures = {pool.submit(resolve_endpoint_name, ip): ip for ip in unresolved}
+                for future in as_completed(futures):
+                    ip = futures[future]
+                    name, source = future.result()
+                    if name != "unknown":
+                        name_map[ip] = (name, source)
+        for row in found:
+            name = name_map.get(str(row["ip"]))
+            if row["hostname"] == "unknown" and name:
+                row["hostname"], row["name_source"] = name
         self._json(200, {"cidrs": [str(network) for network in networks], "hosts": found})
 
     def run_step(self, payload: dict[str, object]) -> None:
