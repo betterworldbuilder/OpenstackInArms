@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 
 GENESTACK_REPO="${GENESTACK_REPO:-https://github.com/rackerlabs/genestack}"
+GENESTACK_REF="${GENESTACK_REF:-release-2026.1}"
 GENESTACK_PATH="${GENESTACK_PATH:-/opt/genestack}"
 GENESTACK_MODE="${GENESTACK_MODE:-aio}"
 GENESTACK_CONFIRM_DEPLOY="${GENESTACK_CONFIRM_DEPLOY:-no}"
@@ -20,6 +21,7 @@ require_root_or_sudo
 
 log "Genestack ARM PoC deployment path"
 log "Repository: $GENESTACK_REPO"
+log "Git ref: $GENESTACK_REF"
 log "Path: $GENESTACK_PATH"
 log "Mode: $GENESTACK_MODE"
 log "OpenStack release target: $OPENSTACK_RELEASE"
@@ -54,9 +56,15 @@ if [[ ! -d "$GENESTACK_PATH/.git" ]]; then
   run_sudo git clone --recurse-submodules -j4 "$GENESTACK_REPO" "$GENESTACK_PATH"
 else
   log "Updating existing Genestack checkout"
-  run_sudo git -C "$GENESTACK_PATH" pull --ff-only
-  run_sudo git -C "$GENESTACK_PATH" submodule update --init --recursive
+  run_sudo git -C "$GENESTACK_PATH" fetch --tags origin
 fi
+
+log "Checking out Genestack ref $GENESTACK_REF"
+run_sudo git -C "$GENESTACK_PATH" checkout "$GENESTACK_REF"
+if [[ "$(git -C "$GENESTACK_PATH" rev-parse --abbrev-ref HEAD)" != "HEAD" ]]; then
+  run_sudo git -C "$GENESTACK_PATH" pull --ff-only origin "$GENESTACK_REF" || true
+fi
+run_sudo git -C "$GENESTACK_PATH" submodule update --init --recursive
 
 log "Running Genestack bootstrap"
 run_sudo env GENESTACK_MODE="$GENESTACK_MODE" "$GENESTACK_PATH/bootstrap.sh"

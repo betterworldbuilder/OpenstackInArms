@@ -82,6 +82,8 @@ OPENSTACK_RELEASE=<selected-release>
 KOLLA_ANSIBLE_SOURCE=git+https://opendev.org/openstack/kolla-ansible@stable/<selected-release>
 ```
 
+For the Genestack path, the repository URL stays stable while `GENESTACK_REF` selects the branch, tag, or commit. Stage 05 includes a **Refresh Genestack Refs** button that reads the current branches and tags from `https://github.com/rackerlabs/genestack`.
+
 ## Manual Mode
 
 Use Manual Mode when you want exact terminal control.

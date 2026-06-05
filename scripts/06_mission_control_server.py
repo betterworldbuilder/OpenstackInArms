@@ -10,6 +10,7 @@ import errno
 import ipaddress
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -50,6 +51,7 @@ ENV_KEYS = {
     "GENESTACK_MODE",
     "GENESTACK_OPENRC",
     "GENESTACK_PATH",
+    "GENESTACK_REF",
     "GENESTACK_REPO",
     "KUBECONFIG",
     "OPENRC",
@@ -356,6 +358,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.save_nodes(payload)
             elif self.path == "/api/scan-lan":
                 self.scan_lan(payload)
+            elif self.path == "/api/genestack-refs":
+                self.genestack_refs(payload)
             elif self.path == "/api/run":
                 self.run_step(payload)
             else:
@@ -495,6 +499,59 @@ class Handler(BaseHTTPRequestHandler):
                 row["hostname"], row["name_source"] = name
             row.update(classify_endpoint(row))
         self._json(200, {"cidrs": [str(network) for network in networks], "hosts": found})
+
+    def genestack_refs(self, payload: dict[str, object]) -> None:
+        repo = str(payload.get("repo", "https://github.com/rackerlabs/genestack")).strip()
+        if not repo:
+            repo = "https://github.com/rackerlabs/genestack"
+        if not (repo.startswith("https://github.com/") or repo.startswith("git@github.com:")):
+            self._json(400, {"error": "Only GitHub Genestack repository URLs are allowed for ref refresh."})
+            return
+
+        result = subprocess.run(
+            ["git", "ls-remote", "--heads", "--tags", repo],
+            text=True,
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+        if result.returncode != 0:
+            self._json(500, {"error": result.stderr.strip() or "Could not read Genestack refs."})
+            return
+
+        branches: list[str] = []
+        tags: list[str] = []
+        for line in result.stdout.splitlines():
+            parts = line.split()
+            if len(parts) != 2 or parts[1].endswith("^{}"):
+                continue
+            ref = parts[1]
+            if ref.startswith("refs/heads/"):
+                branches.append(ref.removeprefix("refs/heads/"))
+            elif ref.startswith("refs/tags/"):
+                tags.append(ref.removeprefix("refs/tags/"))
+
+        def ref_sort_key(ref: str) -> tuple[int, tuple[int, ...], str]:
+            if ref.startswith("release-"):
+                group = 0
+            elif ref == "main":
+                group = 1
+            elif ref.startswith("unsupported-release-"):
+                group = 2
+            else:
+                group = 3
+            numbers = tuple(-int(part) for part in re.findall(r"\d+", ref))
+            return (group, numbers, ref)
+
+        version_refs = sorted(
+            {
+                ref
+                for ref in [*branches, *tags]
+                if ref == "main" or ref.startswith("release-") or ref.startswith("unsupported-release-")
+            },
+            key=ref_sort_key,
+        )
+        self._json(200, {"repo": repo, "branches": sorted(branches), "tags": sorted(tags), "version_refs": version_refs})
 
     def run_step(self, payload: dict[str, object]) -> None:
         step = str(payload.get("step", ""))

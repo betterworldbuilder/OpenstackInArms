@@ -1959,7 +1959,7 @@
                       <tr><td><strong>03 Bootstrap</strong></td><td>Install packages, time sync, Open vSwitch, and KVM checks.</td><td>Same host preparation baseline before Genestack validation.</td></tr>
                       <tr><td><strong>04 Inventory</strong></td><td>Generate <code>multinode-arm.ini</code> for Kolla-Ansible.</td><td>Use inventory as the node plan and ARM target context.</td></tr>
                       <tr><td><strong>05 Deploy</strong></td><td>Run <code>scripts/03_deploy_kolla_arm.sh</code>.</td><td>Run <code>scripts/03_deploy_genestack_arm.sh</code>.</td></tr>
-                      <tr><td><strong>Deploy Inputs</strong></td><td><code>SSH_USER</code>, <code>OPENSTACK_RELEASE</code>, <code>KOLLA_ANSIBLE_SOURCE</code>, <code>VIP</code>, <code>EXT_IFACE</code>, <code>INVENTORY</code>.</td><td><code>SSH_USER</code>, <code>OPENSTACK_RELEASE</code>, <code>GENESTACK_REPO</code>, <code>GENESTACK_MODE</code>, <code>GENESTACK_PATH</code>, <code>GENESTACK_CONFIRM_DEPLOY</code>, <code>VIP</code>, <code>EXT_IFACE</code>, <code>INVENTORY</code>.</td></tr>
+                      <tr><td><strong>Deploy Inputs</strong></td><td><code>SSH_USER</code>, <code>OPENSTACK_RELEASE</code>, <code>KOLLA_ANSIBLE_SOURCE</code>, <code>VIP</code>, <code>EXT_IFACE</code>, <code>INVENTORY</code>.</td><td><code>SSH_USER</code>, <code>OPENSTACK_RELEASE</code>, <code>GENESTACK_REPO</code>, <code>GENESTACK_REF</code>, <code>GENESTACK_MODE</code>, <code>GENESTACK_PATH</code>, <code>GENESTACK_CONFIRM_DEPLOY</code>, <code>VIP</code>, <code>EXT_IFACE</code>, <code>INVENTORY</code>.</td></tr>
                       <tr><td><strong>Deploy Model</strong></td><td>OpenStack services in containers via Kolla-Ansible.</td><td>Kubernetes plus OpenStack-Helm, Kustomize, and Helm via Genestack.</td></tr>
                       <tr><td><strong>06 Validate</strong></td><td>Run <code>scripts/04_validate_arm_openstack.sh</code>.</td><td>Run <code>scripts/04_validate_genestack_arm.sh</code>.</td></tr>
                       <tr><td><strong>Validation Checks</strong></td><td>OpenStack services, hypervisors, ARM64 image, flavor, provider network, subnet, VM boot, serial console.</td><td>Genestack checkout, Kubernetes nodes, OpenStack/Genestack pods, Helm releases, optional OpenStack services/endpoints.</td></tr>
@@ -2266,6 +2266,20 @@
     let scanRows = [];
     let selectedNodeRows = [];
     let splitDrag = null;
+    let genestackRefOptions = [
+      "release-2026.1",
+      "release-2026.1.0",
+      "release-2026.1.1-rc",
+      "release-2025.4.1.3",
+      "release-2025.4.1.2",
+      "release-2025.4.1",
+      "release-2025.4",
+      "release-2025.3.1",
+      "release-2025.3.0",
+      "unsupported-release-2025.3",
+      "unsupported-release-2025.2",
+      "main"
+    ];
     const ENDPOINT_NAME_CACHE_VERSION = "real-names-first-v2";
     if (localStorage.getItem("openarmsEndpointNameCacheVersion") !== ENDPOINT_NAME_CACHE_VERSION) {
       localStorage.removeItem("openarmsEndpointNames");
@@ -2281,6 +2295,7 @@
       GENESTACK_MODE: "aio",
       GENESTACK_CONFIRM_DEPLOY: "no",
       GENESTACK_REPO: "https://github.com/rackerlabs/genestack",
+      GENESTACK_REF: "release-2026.1",
       GENESTACK_PATH: "/opt/genestack",
       KUBECONFIG: "/etc/kubernetes/admin.conf",
       OPENRC: "/etc/kolla/admin-openrc.sh",
@@ -2376,6 +2391,7 @@
         GENESTACK_MODE: fieldValue("genestackMode", currentValues.GENESTACK_MODE),
         GENESTACK_CONFIRM_DEPLOY: fieldChecked("genestackConfirm", currentValues.GENESTACK_CONFIRM_DEPLOY === "yes") ? "yes" : "no",
         GENESTACK_REPO: fieldValue("genestackRepo", currentValues.GENESTACK_REPO),
+        GENESTACK_REF: fieldValue("genestackRef", currentValues.GENESTACK_REF),
         GENESTACK_PATH: fieldValue("genestackPath", currentValues.GENESTACK_PATH),
         KUBECONFIG: fieldValue("kubeconfig", currentValues.KUBECONFIG),
         OPENRC: fieldValue("openrc", currentValues.OPENRC),
@@ -2439,7 +2455,7 @@
     function deployCommand() {
       const env = values();
       if (env.DEPLOY_TOOL === "genestack") {
-        return `SSH_USER=${env.SSH_USER} OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} DEPLOY_TOOL=genestack GENESTACK_REPO=${env.GENESTACK_REPO} GENESTACK_MODE=${env.GENESTACK_MODE} GENESTACK_PATH=${env.GENESTACK_PATH} GENESTACK_CONFIRM_DEPLOY=${env.GENESTACK_CONFIRM_DEPLOY} INVENTORY=multinode-arm.ini scripts/03_deploy_genestack_arm.sh`;
+        return `SSH_USER=${env.SSH_USER} OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} DEPLOY_TOOL=genestack GENESTACK_REPO=${env.GENESTACK_REPO} GENESTACK_REF=${env.GENESTACK_REF} GENESTACK_MODE=${env.GENESTACK_MODE} GENESTACK_PATH=${env.GENESTACK_PATH} GENESTACK_CONFIRM_DEPLOY=${env.GENESTACK_CONFIRM_DEPLOY} INVENTORY=multinode-arm.ini scripts/03_deploy_genestack_arm.sh`;
       }
       return `SSH_USER=${env.SSH_USER} OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} KOLLA_ANSIBLE_SOURCE=${env.KOLLA_ANSIBLE_SOURCE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} INVENTORY=multinode-arm.ini scripts/03_deploy_kolla_arm.sh`;
     }
@@ -2547,6 +2563,10 @@
       return value === "yes" ? "checked" : "";
     }
 
+    function genestackRefOptionMarkup() {
+      return genestackRefOptions.map((ref) => `<option value="${escapeHtml(ref)}"></option>`).join("");
+    }
+
     function stageControls(stage) {
       const env = values();
       const knownReleases = ["2025.1", "2024.2", "2024.1"];
@@ -2577,10 +2597,20 @@
             </label>
         ` : "";
         const genestackFields = env.DEPLOY_TOOL === "genestack" ? `
-            <label class="wide" for="genestackRepo">Genestack Repo URL Used
+            <label class="wide" for="genestackRepo">Genestack Repo / Release Source
               <input id="genestackRepo" value="${escapeHtml(env.GENESTACK_REPO)}">
-              <small class="field-help">The deploy script clones or updates Genestack from this URL before running the guarded bootstrap path.</small>
+              <small class="field-help">The deploy script clones or updates Genestack from this repository URL.</small>
             </label>
+            <label class="wide" for="genestackRef">Genestack Branch / Tag
+              <input id="genestackRef" list="genestackRefOptions" value="${escapeHtml(env.GENESTACK_REF)}">
+              <datalist id="genestackRefOptions">
+                ${genestackRefOptionMarkup()}
+              </datalist>
+              <small class="field-help">Git branch, release tag, or commit to checkout after clone/update. Options are release refs currently advertised by rackerlabs/genestack; you can still type any branch, tag, or commit.</small>
+            </label>
+            <div class="button-row wide">
+              <button type="button" class="ghost" data-refresh-genestack-refs="true">Refresh Genestack Refs</button>
+            </div>
             <label for="genestackMode">Genestack Mode
               <select id="genestackMode">
                 <option value="aio" ${selected(env.GENESTACK_MODE, "aio")}>aio test cloud</option>
@@ -2954,6 +2984,27 @@
       return data;
     }
 
+    async function refreshGenestackRefs() {
+      setBusy(true);
+      append("deploy", "$ refresh Genestack refs");
+      try {
+        const env = values();
+        const data = await api("/api/genestack-refs", { repo: env.GENESTACK_REPO });
+        genestackRefOptions = data.version_refs || genestackRefOptions;
+        if (!genestackRefOptions.includes(currentValues.GENESTACK_REF)) {
+          currentValues.GENESTACK_REF = genestackRefOptions[0] || currentValues.GENESTACK_REF;
+        }
+        append("deploy", `found ${genestackRefOptions.length} Genestack release refs`);
+        append("deploy", genestackRefOptions.map((ref) => `- ${ref}`).join("\n"));
+        renderStages();
+      } catch (error) {
+        append("deploy", `ERROR refreshing Genestack refs: ${error.message}`);
+        markStageAttention("deploy");
+      } finally {
+        setBusy(false);
+      }
+    }
+
     async function runStage(stage) {
       if (stage.id === "scan") {
         await scanLan();
@@ -3144,6 +3195,11 @@
       const copyId = action.dataset.copy;
       const jumpId = action.dataset.jump;
       const pathId = action.dataset.path;
+      const refreshGenestack = action.dataset.refreshGenestackRefs;
+      if (refreshGenestack) {
+        await refreshGenestackRefs();
+        return;
+      }
       if (pathId) {
         setDeployTool(pathId);
         return;
@@ -3174,7 +3230,7 @@
       updatePocSummary();
     });
     document.addEventListener("input", (event) => {
-      if (!event.target.matches("#lanCidr, #sshUser, #kollaAnsibleSource, #vip, #extIface, #genestackRepo, #genestackPath, #kubeconfig, #openrc, #genestackOpenrc, #cidr, #gw, #poolStart, #poolEnd")) return;
+      if (!event.target.matches("#lanCidr, #sshUser, #kollaAnsibleSource, #vip, #extIface, #genestackRepo, #genestackRef, #genestackPath, #kubeconfig, #openrc, #genestackOpenrc, #cidr, #gw, #poolStart, #poolEnd")) return;
       values();
       updatePocSummary();
     });
