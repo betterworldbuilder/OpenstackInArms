@@ -2210,9 +2210,9 @@
       },
       {
         id: "bootstrap",
-        title: "Bootstrap ARM Nodes",
-        body: "Install required packages, enable time sync and Open vSwitch, and probe KVM.",
-        command: "NODE_LIST=nodes.txt SSH_USER=$SSH_USER scripts/01_bootstrap_arm_nodes.sh"
+        title: "Bootstrap Cloud Nodes",
+        body: "Install required packages, enable time sync and Open vSwitch, and probe KVM for ARM/x86 nodes.",
+        command: "NODE_LIST=nodes.txt SSH_USER=$SSH_USER scripts/01_bootstrap_cloud_nodes.sh"
       },
       {
         id: "inventory",

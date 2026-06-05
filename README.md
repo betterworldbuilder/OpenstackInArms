@@ -49,7 +49,7 @@ The UI is localhost-only. It runs an allowlist of PoC actions and does not expos
 |---|---|---|
 | 01 LAN Scout | Scan | Scan a CIDR, discover reachable IPs, probe SSH, and detect ARM candidates |
 | 02 Prereq Scan | Run | Check local tools, node file format, and SSH reachability |
-| 03 Bootstrap ARM Nodes | Run | Install base packages and check KVM/Open vSwitch readiness |
+| 03 Bootstrap Cloud Nodes | Run | Install base packages and check KVM/Open vSwitch readiness on ARM/x86 nodes |
 | 04 Generate Inventory | Run | Generate `multinode-arm.ini` for Kolla-Ansible |
 | 05 Deploy Kolla ARM | Deploy | Run Kolla bootstrap, prechecks, deploy, and post-deploy |
 | 06 Validate Cloud | Run | Upload ARM64 image, create flavor/network, boot VM, show serial console |
@@ -105,7 +105,8 @@ The deployment script installs Kolla-Ansible from `stable/${OPENSTACK_RELEASE}` 
 ├── nodes.example.txt
 ├── scripts/
 │   ├── 00_check_prereqs.sh
-│   ├── 01_bootstrap_arm_nodes.sh
+│   ├── 01_bootstrap_cloud_nodes.sh
+│   ├── 01_bootstrap_arm_nodes.sh      # legacy wrapper
 │   ├── 02_generate_inventory.py
 │   ├── 03_deploy_kolla_arm.sh
 │   ├── 04_validate_arm_openstack.sh
@@ -144,10 +145,10 @@ chmod +x scripts/*.sh
 NODE_LIST=nodes.txt SSH_USER=ubuntu scripts/00_check_prereqs.sh
 ```
 
-## Manual Step 3: Bootstrap ARM Nodes
+## Manual Step 3: Bootstrap Cloud Nodes
 
 ```bash
-NODE_LIST=nodes.txt SSH_USER=ubuntu scripts/01_bootstrap_arm_nodes.sh
+NODE_LIST=nodes.txt SSH_USER=ubuntu scripts/01_bootstrap_cloud_nodes.sh
 ```
 
 Reboot nodes after bootstrap:

@@ -21,7 +21,7 @@ HTML = ROOT / "mission-control.html"
 
 STEPS = {
     "prereqs": ["bash", "scripts/00_check_prereqs.sh"],
-    "bootstrap": ["bash", "scripts/01_bootstrap_arm_nodes.sh"],
+    "bootstrap": ["bash", "scripts/01_bootstrap_cloud_nodes.sh"],
     "inventory": [
         "python3",
         "scripts/02_generate_inventory.py",
