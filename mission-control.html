@@ -2563,8 +2563,14 @@
       return value === "yes" ? "checked" : "";
     }
 
-    function genestackRefOptionMarkup() {
-      return genestackRefOptions.map((ref) => `<option value="${escapeHtml(ref)}"></option>`).join("");
+    function genestackRefOptionMarkup(currentRef) {
+      const options = genestackRefOptions.includes(currentRef)
+        ? genestackRefOptions
+        : [currentRef, ...genestackRefOptions];
+      return options
+        .filter(Boolean)
+        .map((ref) => `<option value="${escapeHtml(ref)}" ${selected(currentRef, ref)}>${escapeHtml(ref)}</option>`)
+        .join("");
     }
 
     function stageControls(stage) {
@@ -2602,11 +2608,10 @@
               <small class="field-help">The deploy script clones or updates Genestack from this repository URL.</small>
             </label>
             <label class="wide" for="genestackRef">Genestack Branch / Tag
-              <input id="genestackRef" list="genestackRefOptions" value="${escapeHtml(env.GENESTACK_REF)}">
-              <datalist id="genestackRefOptions">
-                ${genestackRefOptionMarkup()}
-              </datalist>
-              <small class="field-help">Git branch, release tag, or commit to checkout after clone/update. Options are release refs currently advertised by rackerlabs/genestack; you can still type any branch, tag, or commit.</small>
+              <select id="genestackRef">
+                ${genestackRefOptionMarkup(env.GENESTACK_REF)}
+              </select>
+              <small class="field-help">Git branch or release tag to checkout after clone/update. Use Refresh Genestack Refs to pull the current options from the repository.</small>
             </label>
             <div class="button-row wide">
               <button type="button" class="ghost" data-refresh-genestack-refs="true">Refresh Genestack Refs</button>
@@ -3230,7 +3235,7 @@
       updatePocSummary();
     });
     document.addEventListener("input", (event) => {
-      if (!event.target.matches("#lanCidr, #sshUser, #kollaAnsibleSource, #vip, #extIface, #genestackRepo, #genestackRef, #genestackPath, #kubeconfig, #openrc, #genestackOpenrc, #cidr, #gw, #poolStart, #poolEnd")) return;
+      if (!event.target.matches("#lanCidr, #sshUser, #kollaAnsibleSource, #vip, #extIface, #genestackRepo, #genestackPath, #kubeconfig, #openrc, #genestackOpenrc, #cidr, #gw, #poolStart, #poolEnd")) return;
       values();
       updatePocSummary();
     });
@@ -3243,7 +3248,8 @@
         setDeployTool(event.target.value);
         return;
       }
-      if (!event.target.matches("#genestackMode, #genestackConfirm")) return;
+      if (!event.target.matches("#genestackMode, #genestackRef, #genestackConfirm")) return;
+      values();
       renderStages();
     });
     initSplitter();
