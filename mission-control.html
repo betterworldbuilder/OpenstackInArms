@@ -2602,6 +2602,37 @@
       });
     }
 
+    function selectedNodePayloadFromTable() {
+      const rows = [];
+      const lines = [];
+      scanRows.forEach((row, index) => {
+        const use = document.querySelector(`[data-scan-use="${index}"]`);
+        if (!use || !use.checked) return;
+        const host = document.querySelector(`[data-scan-host="${index}"]`)?.value.trim();
+        const role = document.querySelector(`[data-scan-role="${index}"]`)?.value || "compute";
+        const hostname = host || row.hostname || `arm-node-${index + 1}`;
+        rows.push({ ...row, hostname, role });
+        lines.push(`${row.ip} ${hostname} ${role}`);
+      });
+      return { rows, lines };
+    }
+
+    async function ensureNodesFile(stageId) {
+      if (!["prereqs", "bootstrap", "inventory"].includes(stageId)) return true;
+      const payload = selectedNodePayloadFromTable();
+      if (!payload.lines.length) {
+        append(stageId, "No ARM nodes selected. Run Stage 01, check the ARM hosts to use, then run this stage again.");
+        markStageAttention(stageId);
+        return false;
+      }
+      $("nodes").value = payload.lines.join("\n");
+      selectedNodeRows = payload.rows;
+      updatePocSummary();
+      const data = await api("/api/save-nodes", { content: $("nodes").value });
+      append(stageId, data.output || `nodes.txt saved (${payload.lines.length} node(s))`);
+      return true;
+    }
+
     function detectHardwareTier(rows) {
       if (!rows.length) return "ARM Lab PoC";
       const text = rows.map((row) => `${row.model} ${row.cpu} ${row.hostname}`).join(" ").toLowerCase();
@@ -2754,6 +2785,13 @@
         suggestFixes();
         return;
       }
+      try {
+        if (!await ensureNodesFile(stage.id)) return;
+      } catch (error) {
+        append(stage.id, `ERROR saving nodes.txt: ${error.message}`);
+        markStageAttention(stage.id);
+        return;
+      }
       if (stage.danger && !confirm("Deploy will change remote ARM nodes and /etc/kolla. Continue?")) return;
       setBusy(true);
       append(stage.id, `$ ${commandText(stage)}`);
@@ -2819,26 +2857,15 @@
     }
 
     async function useSelectedRows() {
-      const lines = [];
-      scanRows.forEach((row, index) => {
-        const use = document.querySelector(`[data-scan-use="${index}"]`);
-        if (!use || !use.checked) return;
-        const host = document.querySelector(`[data-scan-host="${index}"]`).value.trim();
-        const role = document.querySelector(`[data-scan-role="${index}"]`).value;
-        lines.push(`${row.ip} ${host || `arm-node-${index + 1}`} ${role}`);
-      });
-      if (!lines.length) {
+      const payload = selectedNodePayloadFromTable();
+      if (!payload.lines.length) {
         append("scan", "select at least one discovered host first");
         return;
       }
-      $("nodes").value = lines.join("\n");
-      selectedNodeRows = lines.map((line) => {
-        const [ip, hostname, role] = line.split(/\s+/);
-        const row = scanRows.find((item) => item.ip === ip) || { ip, hostname, role };
-        return { ...row, hostname, role };
-      });
+      $("nodes").value = payload.lines.join("\n");
+      selectedNodeRows = payload.rows;
       updatePocSummary();
-      append("scan", `selected ${lines.length} ARM endpoint(s)`);
+      append("scan", `selected ${payload.lines.length} ARM endpoint(s)`);
       setBusy(true);
       try {
         const data = await api("/api/save-nodes", { content: $("nodes").value });
