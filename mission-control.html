@@ -2578,15 +2578,25 @@
       const knownReleases = ["2025.1", "2024.2", "2024.1"];
       const releaseChoice = knownReleases.includes(env.OPENSTACK_RELEASE) ? env.OPENSTACK_RELEASE : "custom";
       if (stage.id === "deploy") {
-        const commonDeployFields = `
+        const releaseControl = env.DEPLOY_TOOL === "genestack" ? `
+            <label for="genestackRef">OpenStack Release
+              <select id="genestackRef">
+                ${genestackRefOptionMarkup(env.GENESTACK_REF)}
+              </select>
+              <small class="field-help">For Genestack, this selects the Genestack branch or release tag that carries the OpenStack deployment version.</small>
+            </label>
+        ` : `
             <label for="openstackReleaseChoice">OpenStack Release
               <select id="openstackReleaseChoice">
                 <option value="2025.1" ${selected(releaseChoice, "2025.1")}>2025.1 Epoxy</option>
                 <option value="2024.2" ${selected(releaseChoice, "2024.2")}>2024.2 Dalmatian</option>
                 <option value="2024.1" ${selected(releaseChoice, "2024.1")}>2024.1 Caracal</option>
               </select>
-              <small class="field-help">OpenStack branch or release target exported as OPENSTACK_RELEASE for the selected deployment path.</small>
+              <small class="field-help">OpenStack branch or release target exported as OPENSTACK_RELEASE for Kolla-Ansible.</small>
             </label>
+        `;
+        const commonDeployFields = `
+            ${releaseControl}
             <label for="vip">VIP
               <input id="vip" value="${escapeHtml(env.VIP)}">
               <small class="field-help">Unused management-network address that OpenStack services advertise as the control-plane endpoint.</small>
@@ -2606,12 +2616,6 @@
             <label class="wide" for="genestackRepo">Genestack Repo / Release Source
               <input id="genestackRepo" value="${escapeHtml(env.GENESTACK_REPO)}">
               <small class="field-help">The deploy script clones or updates Genestack from this repository URL.</small>
-            </label>
-            <label class="wide" for="genestackRef">Genestack Branch / Tag
-              <select id="genestackRef">
-                ${genestackRefOptionMarkup(env.GENESTACK_REF)}
-              </select>
-              <small class="field-help">Git branch or release tag to checkout after clone/update. Use Refresh Genestack Refs to pull the current options from the repository.</small>
             </label>
             <div class="button-row wide">
               <button type="button" class="ghost" data-refresh-genestack-refs="true">Refresh Genestack Refs</button>
