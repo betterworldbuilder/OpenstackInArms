@@ -41,6 +41,7 @@ STEPS = {
 ENV_KEYS = {
     "SSH_USER",
     "OPENSTACK_RELEASE",
+    "KOLLA_ANSIBLE_SOURCE",
     "VIP",
     "EXT_IFACE",
     "CIDR",

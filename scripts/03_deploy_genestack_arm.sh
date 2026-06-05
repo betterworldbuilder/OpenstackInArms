@@ -9,6 +9,9 @@ GENESTACK_REPO="${GENESTACK_REPO:-https://github.com/rackerlabs/genestack}"
 GENESTACK_PATH="${GENESTACK_PATH:-/opt/genestack}"
 GENESTACK_MODE="${GENESTACK_MODE:-aio}"
 GENESTACK_CONFIRM_DEPLOY="${GENESTACK_CONFIRM_DEPLOY:-no}"
+OPENSTACK_RELEASE="${OPENSTACK_RELEASE:-2025.1}"
+VIP="${VIP:-192.168.10.250}"
+EXT_IFACE="${EXT_IFACE:-eth0}"
 INVENTORY="${INVENTORY:-${SCRIPT_DIR}/../multinode-arm.ini}"
 
 require_file "$INVENTORY"
@@ -19,6 +22,9 @@ log "Genestack ARM PoC deployment path"
 log "Repository: $GENESTACK_REPO"
 log "Path: $GENESTACK_PATH"
 log "Mode: $GENESTACK_MODE"
+log "OpenStack release target: $OPENSTACK_RELEASE"
+log "VIP: $VIP"
+log "External interface: $EXT_IFACE"
 
 cat <<'INFO'
 Genestack is a Kubernetes + OpenStack deployment ecosystem.

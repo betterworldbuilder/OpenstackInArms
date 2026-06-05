@@ -1959,7 +1959,7 @@
                       <tr><td><strong>03 Bootstrap</strong></td><td>Install packages, time sync, Open vSwitch, and KVM checks.</td><td>Same host preparation baseline before Genestack validation.</td></tr>
                       <tr><td><strong>04 Inventory</strong></td><td>Generate <code>multinode-arm.ini</code> for Kolla-Ansible.</td><td>Use inventory as the node plan and ARM target context.</td></tr>
                       <tr><td><strong>05 Deploy</strong></td><td>Run <code>scripts/03_deploy_kolla_arm.sh</code>.</td><td>Run <code>scripts/03_deploy_genestack_arm.sh</code>.</td></tr>
-                      <tr><td><strong>Deploy Inputs</strong></td><td><code>SSH_USER</code>, <code>OPENSTACK_RELEASE</code>, <code>VIP</code>, <code>EXT_IFACE</code>, <code>INVENTORY</code>.</td><td><code>SSH_USER</code>, <code>GENESTACK_MODE</code>, <code>GENESTACK_PATH</code>, <code>GENESTACK_CONFIRM_DEPLOY</code>, <code>INVENTORY</code>.</td></tr>
+                      <tr><td><strong>Deploy Inputs</strong></td><td><code>SSH_USER</code>, <code>OPENSTACK_RELEASE</code>, <code>KOLLA_ANSIBLE_SOURCE</code>, <code>VIP</code>, <code>EXT_IFACE</code>, <code>INVENTORY</code>.</td><td><code>SSH_USER</code>, <code>OPENSTACK_RELEASE</code>, <code>GENESTACK_REPO</code>, <code>GENESTACK_MODE</code>, <code>GENESTACK_PATH</code>, <code>GENESTACK_CONFIRM_DEPLOY</code>, <code>VIP</code>, <code>EXT_IFACE</code>, <code>INVENTORY</code>.</td></tr>
                       <tr><td><strong>Deploy Model</strong></td><td>OpenStack services in containers via Kolla-Ansible.</td><td>Kubernetes plus OpenStack-Helm, Kustomize, and Helm via Genestack.</td></tr>
                       <tr><td><strong>06 Validate</strong></td><td>Run <code>scripts/04_validate_arm_openstack.sh</code>.</td><td>Run <code>scripts/04_validate_genestack_arm.sh</code>.</td></tr>
                       <tr><td><strong>Validation Checks</strong></td><td>OpenStack services, hypervisors, ARM64 image, flavor, provider network, subnet, VM boot, serial console.</td><td>Genestack checkout, Kubernetes nodes, OpenStack/Genestack pods, Helm releases, optional OpenStack services/endpoints.</td></tr>
@@ -2276,9 +2276,11 @@
       LAN_CIDR: "auto",
       SSH_USER: "ubuntu",
       OPENSTACK_RELEASE: "2025.1",
+      KOLLA_ANSIBLE_SOURCE: "git+https://opendev.org/openstack/kolla-ansible@stable/2025.1",
       DEPLOY_TOOL: "genestack",
       GENESTACK_MODE: "aio",
       GENESTACK_CONFIRM_DEPLOY: "no",
+      GENESTACK_REPO: "https://github.com/rackerlabs/genestack",
       GENESTACK_PATH: "/opt/genestack",
       KUBECONFIG: "/etc/kubernetes/admin.conf",
       OPENRC: "/etc/kolla/admin-openrc.sh",
@@ -2369,9 +2371,11 @@
         LAN_CIDR: fieldValue("lanCidr", currentValues.LAN_CIDR),
         SSH_USER: fieldValue("sshUser", currentValues.SSH_USER),
         OPENSTACK_RELEASE: selectedOpenStackRelease(),
+        KOLLA_ANSIBLE_SOURCE: fieldValue("kollaAnsibleSource", currentValues.KOLLA_ANSIBLE_SOURCE || defaultKollaSource(selectedOpenStackRelease())),
         DEPLOY_TOOL: fieldValue("deployTool", currentValues.DEPLOY_TOOL),
         GENESTACK_MODE: fieldValue("genestackMode", currentValues.GENESTACK_MODE),
         GENESTACK_CONFIRM_DEPLOY: fieldChecked("genestackConfirm", currentValues.GENESTACK_CONFIRM_DEPLOY === "yes") ? "yes" : "no",
+        GENESTACK_REPO: fieldValue("genestackRepo", currentValues.GENESTACK_REPO),
         GENESTACK_PATH: fieldValue("genestackPath", currentValues.GENESTACK_PATH),
         KUBECONFIG: fieldValue("kubeconfig", currentValues.KUBECONFIG),
         OPENRC: fieldValue("openrc", currentValues.OPENRC),
@@ -2389,8 +2393,11 @@
 
     function selectedOpenStackRelease() {
       const choice = fieldValue("openstackReleaseChoice", currentValues.OPENSTACK_RELEASE);
-      if (choice === "custom") return fieldValue("openstackReleaseCustom", currentValues.OPENSTACK_RELEASE || "2025.1");
       return choice;
+    }
+
+    function defaultKollaSource(release) {
+      return `git+https://opendev.org/openstack/kolla-ansible@stable/${release || "2025.1"}`;
     }
 
     function setDeployTool(tool) {
@@ -2403,8 +2410,8 @@
 
     function syncReleasePicker() {
       const picker = $("openstackReleaseChoice");
-      const customInput = $("openstackReleaseCustom");
-      if (picker && customInput) customInput.hidden = picker.value !== "custom";
+      const sourceInput = $("kollaAnsibleSource");
+      if (picker && sourceInput) sourceInput.value = defaultKollaSource(picker.value);
       updatePocSummary();
       renderStages();
     }
@@ -2432,9 +2439,9 @@
     function deployCommand() {
       const env = values();
       if (env.DEPLOY_TOOL === "genestack") {
-        return `SSH_USER=${env.SSH_USER} DEPLOY_TOOL=genestack GENESTACK_MODE=${env.GENESTACK_MODE} GENESTACK_PATH=${env.GENESTACK_PATH} GENESTACK_CONFIRM_DEPLOY=${env.GENESTACK_CONFIRM_DEPLOY} INVENTORY=multinode-arm.ini scripts/03_deploy_genestack_arm.sh`;
+        return `SSH_USER=${env.SSH_USER} OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} DEPLOY_TOOL=genestack GENESTACK_REPO=${env.GENESTACK_REPO} GENESTACK_MODE=${env.GENESTACK_MODE} GENESTACK_PATH=${env.GENESTACK_PATH} GENESTACK_CONFIRM_DEPLOY=${env.GENESTACK_CONFIRM_DEPLOY} INVENTORY=multinode-arm.ini scripts/03_deploy_genestack_arm.sh`;
       }
-      return `SSH_USER=${env.SSH_USER} OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} INVENTORY=multinode-arm.ini scripts/03_deploy_kolla_arm.sh`;
+      return `SSH_USER=${env.SSH_USER} OPENSTACK_RELEASE=${env.OPENSTACK_RELEASE} KOLLA_ANSIBLE_SOURCE=${env.KOLLA_ANSIBLE_SOURCE} VIP=${env.VIP} EXT_IFACE=${env.EXT_IFACE} INVENTORY=multinode-arm.ini scripts/03_deploy_kolla_arm.sh`;
     }
 
     function validateCommand() {
@@ -2545,30 +2552,35 @@
       const knownReleases = ["2025.1", "2024.2", "2024.1"];
       const releaseChoice = knownReleases.includes(env.OPENSTACK_RELEASE) ? env.OPENSTACK_RELEASE : "custom";
       if (stage.id === "deploy") {
-        const kollaFields = env.DEPLOY_TOOL === "kolla" ? `
+        const commonDeployFields = `
             <label for="openstackReleaseChoice">OpenStack Release
               <select id="openstackReleaseChoice">
                 <option value="2025.1" ${selected(releaseChoice, "2025.1")}>2025.1 Epoxy</option>
                 <option value="2024.2" ${selected(releaseChoice, "2024.2")}>2024.2 Dalmatian</option>
                 <option value="2024.1" ${selected(releaseChoice, "2024.1")}>2024.1 Caracal</option>
-                <option value="custom" ${selected(releaseChoice, "custom")}>Custom</option>
               </select>
-              <small class="field-help">OpenStack branch or release exported as OPENSTACK_RELEASE for Kolla-Ansible.</small>
-            </label>
-            <label for="openstackReleaseCustom" ${releaseChoice === "custom" ? "" : "hidden"}>Custom Release
-              <input id="openstackReleaseCustom" value="${escapeHtml(env.OPENSTACK_RELEASE)}">
-              <small class="field-help">Use this for a Kolla release not listed above, for example a specific stable branch name.</small>
+              <small class="field-help">OpenStack branch or release target exported as OPENSTACK_RELEASE for the selected deployment path.</small>
             </label>
             <label for="vip">VIP
               <input id="vip" value="${escapeHtml(env.VIP)}">
-              <small class="field-help">Unused management-network address that Kolla services advertise as the control-plane endpoint.</small>
+              <small class="field-help">Unused management-network address that OpenStack services advertise as the control-plane endpoint.</small>
             </label>
             <label for="extIface">External Interface
               <input id="extIface" value="${escapeHtml(env.EXT_IFACE)}">
-              <small class="field-help">Linux NIC used by Kolla for management/provider traffic, usually eth0, enp*, or the lab uplink.</small>
+              <small class="field-help">Linux NIC used for management/provider traffic, usually eth0, enp*, or the lab uplink.</small>
+            </label>
+        `;
+        const kollaSourceField = env.DEPLOY_TOOL === "kolla" ? `
+            <label class="wide" for="kollaAnsibleSource">Kolla-Ansible Source URL Used
+              <input id="kollaAnsibleSource" value="${escapeHtml(env.KOLLA_ANSIBLE_SOURCE || defaultKollaSource(env.OPENSTACK_RELEASE))}">
+              <small class="field-help">pip installs Kolla-Ansible from this source. Default: git+https://opendev.org/openstack/kolla-ansible@stable/&lt;release&gt;. Edit it to test another branch, fork, or pinned commit.</small>
             </label>
         ` : "";
         const genestackFields = env.DEPLOY_TOOL === "genestack" ? `
+            <label class="wide" for="genestackRepo">Genestack Repo URL Used
+              <input id="genestackRepo" value="${escapeHtml(env.GENESTACK_REPO)}">
+              <small class="field-help">The deploy script clones or updates Genestack from this URL before running the guarded bootstrap path.</small>
+            </label>
             <label for="genestackMode">Genestack Mode
               <select id="genestackMode">
                 <option value="aio" ${selected(env.GENESTACK_MODE, "aio")}>aio test cloud</option>
@@ -2590,7 +2602,8 @@
               <input id="sshUser" value="${escapeHtml(env.SSH_USER)}">
               <small class="field-help">Linux account used to reach the ARM nodes for prereq scan, bootstrap, inventory generation, and deploy automation.</small>
             </label>
-            ${kollaFields}
+            ${commonDeployFields}
+            ${kollaSourceField}
             ${genestackFields}
           </div>
         `;
@@ -3161,7 +3174,7 @@
       updatePocSummary();
     });
     document.addEventListener("input", (event) => {
-      if (!event.target.matches("#lanCidr, #sshUser, #openstackReleaseCustom, #vip, #extIface, #genestackPath, #kubeconfig, #openrc, #genestackOpenrc, #cidr, #gw, #poolStart, #poolEnd")) return;
+      if (!event.target.matches("#lanCidr, #sshUser, #kollaAnsibleSource, #vip, #extIface, #genestackRepo, #genestackPath, #kubeconfig, #openrc, #genestackOpenrc, #cidr, #gw, #poolStart, #poolEnd")) return;
       values();
       updatePocSummary();
     });

@@ -74,12 +74,12 @@ The Web UI lets the user choose the release before deployment.
 | `2025.1` | Epoxy | Default PoC baseline |
 | `2024.2` | Dalmatian | Fallback for older Kolla-Ansible testing |
 | `2024.1` | Caracal | Older validation target |
-| custom | Any valid Kolla branch/version | User-defined `OPENSTACK_RELEASE` |
 
-The selected release is passed to deployment as:
+The selected release is passed to deployment, and the Web UI also shows the actual source URL used by the deploy script:
 
 ```bash
 OPENSTACK_RELEASE=<selected-release>
+KOLLA_ANSIBLE_SOURCE=git+https://opendev.org/openstack/kolla-ansible@stable/<selected-release>
 ```
 
 ## Manual Mode
