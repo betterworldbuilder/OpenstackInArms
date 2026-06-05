@@ -117,6 +117,24 @@ def local_lan_networks() -> list[ipaddress.IPv4Network]:
 
 
 def resolve_endpoint_name(ip: str) -> str:
+    for hosts_path in (
+        Path("/etc/hosts"),
+        Path("/mnt/c/Windows/System32/drivers/etc/hosts"),
+        Path(r"C:\Windows\System32\drivers\etc\hosts"),
+    ):
+        if not hosts_path.exists():
+            continue
+        try:
+            for line in hosts_path.read_text(errors="ignore").splitlines():
+                clean = line.split("#", 1)[0].strip()
+                if not clean:
+                    continue
+                parts = clean.split()
+                if len(parts) >= 2 and parts[0] == ip:
+                    return parts[1].strip(".")
+        except OSError:
+            continue
+
     try:
         name = socket.gethostbyaddr(ip)[0].strip(".")
         if name:
@@ -125,23 +143,31 @@ def resolve_endpoint_name(ip: str) -> str:
         pass
 
     if shutil.which("powershell.exe"):
-        ps_script = (
-            f"$r = Resolve-DnsName -Name '{ip}' -ErrorAction SilentlyContinue; "
-            "$r | Where-Object { $_.NameHost } | Select-Object -First 1 -ExpandProperty NameHost"
-        )
-        try:
-            result = subprocess.run(
-                ["powershell.exe", "-NoProfile", "-Command", ps_script],
-                text=True,
-                capture_output=True,
-                check=False,
-                timeout=3,
-            )
-        except subprocess.TimeoutExpired:
-            return "unknown"
-        name = result.stdout.strip().replace("\r", "").strip(".")
-        if name:
-            return name
+        scripts = [
+            (
+                f"$r = Resolve-DnsName -Name '{ip}' -ErrorAction SilentlyContinue; "
+                "$r | Where-Object { $_.NameHost } | Select-Object -First 1 -ExpandProperty NameHost"
+            ),
+            (
+                "$cache = Get-DnsClientCache -ErrorAction SilentlyContinue; "
+                f"$cache | Where-Object {{ $_.Data -eq '{ip}' -or ($_.Data -is [array] -and $_.Data -contains '{ip}') }} "
+                "| Select-Object -First 1 -ExpandProperty Entry"
+            ),
+        ]
+        for ps_script in scripts:
+            try:
+                result = subprocess.run(
+                    ["powershell.exe", "-NoProfile", "-Command", ps_script],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    timeout=3,
+                )
+            except subprocess.TimeoutExpired:
+                continue
+            name = result.stdout.strip().replace("\r", "").strip(".")
+            if name:
+                return name
 
     nbtstat = shutil.which("nbtstat.exe") or shutil.which("nbtstat")
     if nbtstat:

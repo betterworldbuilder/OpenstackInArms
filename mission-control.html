@@ -2207,6 +2207,7 @@
     let scanRows = [];
     let selectedNodeRows = [];
     let splitDrag = null;
+    let endpointNameCache = JSON.parse(localStorage.getItem("openarmsEndpointNames") || "{}");
     const currentValues = {
       LAN_CIDR: "auto",
       SSH_USER: "ubuntu",
@@ -2228,6 +2229,28 @@
     const stageLogs = new Map();
     const passedStages = new Set();
     const attentionStages = new Set();
+
+    function endpointAlias(ip) {
+      return `endpoint-${String(ip).replaceAll(".", "-")}`;
+    }
+
+    function displayHostname(row) {
+      const cached = endpointNameCache[row.ip];
+      if (cached) return cached;
+      if (row.hostname && row.hostname !== "unknown") return row.hostname;
+      return endpointAlias(row.ip);
+    }
+
+    function rememberEndpointNames() {
+      document.querySelectorAll("[data-scan-host]").forEach((input) => {
+        const index = Number(input.dataset.scanHost);
+        const row = scanRows[index];
+        const value = input.value.trim();
+        if (!row || !value) return;
+        endpointNameCache[row.ip] = value;
+      });
+      localStorage.setItem("openarmsEndpointNames", JSON.stringify(endpointNameCache));
+    }
 
     function setSidebarWidth(width) {
       const max = Math.max(520, Math.min(window.innerWidth - 520, 880));
@@ -2598,7 +2621,7 @@
         const originalIndex = scanRows.indexOf(row);
         const host = document.querySelector(`[data-scan-host="${originalIndex}"]`)?.value.trim();
         const role = document.querySelector(`[data-scan-role="${originalIndex}"]`)?.value || "compute";
-        return { ...row, hostname: host || row.hostname, role };
+        return { ...row, hostname: host || displayHostname(row), role };
       });
     }
 
@@ -2610,7 +2633,7 @@
         if (!use || !use.checked) return;
         const host = document.querySelector(`[data-scan-host="${index}"]`)?.value.trim();
         const role = document.querySelector(`[data-scan-role="${index}"]`)?.value || "compute";
-        const hostname = host || row.hostname || `arm-node-${index + 1}`;
+        const hostname = host || displayHostname(row);
         rows.push({ ...row, hostname, role });
         lines.push(`${row.ip} ${hostname} ${role}`);
       });
@@ -2811,6 +2834,10 @@
 
     function renderScanRows(rows) {
       scanRows = rows;
+      rows.forEach((row) => {
+        if (row.hostname && row.hostname !== "unknown") endpointNameCache[row.ip] = row.hostname;
+      });
+      localStorage.setItem("openarmsEndpointNames", JSON.stringify(endpointNameCache));
       if (!rows.length) {
         $("scanResults").innerHTML = `<tr><td colspan="5">No reachable hosts found.</td></tr>`;
         return;
@@ -2819,7 +2846,7 @@
         <tr>
           <td><input type="checkbox" data-scan-use="${index}" ${row.arm ? "checked" : ""}></td>
           <td>${escapeHtml(row.ip)}</td>
-          <td><input title="${escapeHtml(row.hostname === "unknown" ? "No DNS/SSH/NetBIOS name resolved; generated endpoint alias" : row.hostname)}" value="${escapeHtml(row.hostname === "unknown" ? `endpoint-${row.ip.replaceAll(".", "-")}` : row.hostname)}" data-scan-host="${index}"></td>
+          <td><input title="${escapeHtml(row.hostname === "unknown" ? "No DNS/SSH/NetBIOS name resolved; restored cached name or generated endpoint alias" : row.hostname)}" value="${escapeHtml(displayHostname(row))}" data-scan-host="${index}"></td>
           <td>${row.arm ? "ARM" : escapeHtml(row.arch)}${row.ssh ? "" : " / SSH closed"}</td>
           <td>
             <select data-scan-role="${index}">
@@ -2958,10 +2985,12 @@
     $("scanLan").addEventListener("click", scanLan);
     $("useSelected").addEventListener("click", useSelectedRows);
     $("scanResults").addEventListener("input", () => {
+      rememberEndpointNames();
       selectedNodeRows = selectedRowsFromTable();
       updatePocSummary();
     });
     $("scanResults").addEventListener("change", () => {
+      rememberEndpointNames();
       selectedNodeRows = selectedRowsFromTable();
       updatePocSummary();
     });
