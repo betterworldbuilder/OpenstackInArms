@@ -1753,7 +1753,7 @@
     }
 
     .scan-box table {
-      min-width: 1120px;
+      min-width: 1640px;
       table-layout: auto;
     }
 
@@ -1780,11 +1780,33 @@
 
     .scan-box th:nth-child(5),
     .scan-box td:nth-child(5) {
-      min-width: 210px;
+      min-width: 100px;
     }
 
     .scan-box th:nth-child(6),
     .scan-box td:nth-child(6) {
+      min-width: 220px;
+      white-space: normal;
+    }
+
+    .scan-box th:nth-child(7),
+    .scan-box td:nth-child(7) {
+      min-width: 100px;
+    }
+
+    .scan-box th:nth-child(8),
+    .scan-box td:nth-child(8) {
+      min-width: 120px;
+      white-space: normal;
+    }
+
+    .scan-box th:nth-child(9),
+    .scan-box td:nth-child(9) {
+      min-width: 210px;
+    }
+
+    .scan-box th:nth-child(10),
+    .scan-box td:nth-child(10) {
       min-width: 150px;
     }
 
@@ -2144,13 +2166,17 @@
                 <th>IP</th>
                 <th>Name / Host</th>
                 <th>Endpoint Type</th>
+                <th>Arch</th>
+                <th>CPU</th>
+                <th>RAM</th>
+                <th>Storage</th>
                 <th>LAN / USB / PCI Visibility</th>
                 <th>Console</th>
                 <th>OpenStack Role</th>
               </tr>
             </thead>
             <tbody id="scanResults">
-              <tr><td colspan="7">Run Where are my Arms? to discover candidates.</td></tr>
+              <tr><td colspan="11">Run Where are my Arms? to discover candidates.</td></tr>
             </tbody>
           </table>
         </div>
@@ -2655,6 +2681,13 @@
       return `${model} | ${os} | CPU ${cpu} | RAM ${ram} | Disk ${disk}`;
     }
 
+    function hardwareFact(row, field) {
+      const value = row[field];
+      if (value && value !== "unknown") return value;
+      if (!row.ssh) return "not visible";
+      return "unknown";
+    }
+
     function classifyEndpoint(row) {
       if (row.endpoint_type && row.visibility && row.console_method && row.openstack_role) {
         return {
@@ -2953,7 +2986,7 @@
       });
       localStorage.setItem("openarmsEndpointNames", JSON.stringify(endpointNameCache));
       if (!rows.length) {
-        $("scanResults").innerHTML = `<tr><td colspan="7">No reachable hosts found.</td></tr>`;
+        $("scanResults").innerHTML = `<tr><td colspan="11">No reachable hosts found.</td></tr>`;
         return;
       }
       $("scanResults").innerHTML = rows.map((row, index) => {
@@ -2964,7 +2997,11 @@
           <td><input type="checkbox" data-scan-use="${index}" ${info.usable ? "checked" : ""}></td>
           <td>${escapeHtml(row.ip)}</td>
           <td><input title="${escapeHtml(row.hostname === "unknown" ? "No DNS/SSH/NetBIOS name resolved; restored cached name or generated endpoint alias" : row.hostname)}" value="${escapeHtml(displayHostname(row))}" data-scan-host="${index}"></td>
-          <td><span class="endpoint-kind">${escapeHtml(info.type)}</span><span class="endpoint-note">${escapeHtml(row.arch || "unknown")}${row.ssh ? " / SSH open" : " / SSH closed"}</span></td>
+          <td><span class="endpoint-kind">${escapeHtml(info.type)}</span><span class="endpoint-note">${row.ssh ? "SSH open" : "SSH closed"}</span></td>
+          <td>${escapeHtml(hardwareFact(row, "arch"))}</td>
+          <td>${escapeHtml(hardwareFact(row, "cpu"))}</td>
+          <td>${escapeHtml(hardwareFact(row, "ram"))}</td>
+          <td>${escapeHtml(hardwareFact(row, "disk"))}</td>
           <td>${escapeHtml(info.visibility)}</td>
           <td>${escapeHtml(info.console)}</td>
           <td>
