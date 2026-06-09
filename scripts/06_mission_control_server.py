@@ -15,6 +15,7 @@ import socket
 import subprocess
 import sys
 import shutil
+import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,36 +62,132 @@ ENV_KEYS = {
 }
 
 
+MAX_AUTO_SCAN_HOSTS = 4096
+AUTO_SCAN_MIN_PREFIXLEN = 24
+VIRTUAL_INTERFACE_RE = re.compile(
+    r"(vethernet|wsl|docker|loopback|hyper-v|hyperv|npcap|virtual|vmware|virtualbox|"
+    r"br-|veth|virbr|podman|cni|flannel|lxc|container|tun|tap|tailscale|zerotier|zt)",
+    re.IGNORECASE,
+)
+AUTO_NETWORK_CACHE: list[ipaddress.IPv4Network] = []
+
+
+def powershell_command() -> str | None:
+    for candidate in (
+        "powershell.exe",
+        "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+        "/mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0/powershell.exe",
+        "pwsh.exe",
+        "/mnt/c/Program Files/PowerShell/7/pwsh.exe",
+    ):
+        found = shutil.which(candidate)
+        if found:
+            return found
+        if Path(candidate).exists():
+            return candidate
+    return None
+
+
+def is_wsl() -> bool:
+    try:
+        return "microsoft" in Path("/proc/sys/kernel/osrelease").read_text(errors="ignore").casefold()
+    except OSError:
+        return False
+
+
+def is_virtual_interface(name: str = "", description: str = "") -> bool:
+    return bool(VIRTUAL_INTERFACE_RE.search(f"{name} {description}"))
+
+
+def bounded_auto_network(interface: ipaddress.IPv4Interface) -> ipaddress.IPv4Network:
+    if interface.network.prefixlen < AUTO_SCAN_MIN_PREFIXLEN:
+        return ipaddress.ip_network(f"{interface.ip}/{AUTO_SCAN_MIN_PREFIXLEN}", strict=False)
+    return interface.network
+
+
+def usable_auto_network(interface: ipaddress.IPv4Interface, name: str = "", description: str = "") -> ipaddress.IPv4Network | None:
+    network = interface.network
+    if is_virtual_interface(name, description):
+        return None
+    if network.prefixlen > 30:
+        return None
+    if network.is_loopback or network.is_link_local or network.is_multicast or network.is_unspecified:
+        return None
+    if not network.is_private:
+        return None
+    return bounded_auto_network(interface)
+
+
+def configured_auto_networks() -> list[ipaddress.IPv4Network]:
+    raw = os.environ.get("MISSION_CONTROL_AUTO_CIDRS", "")
+    networks: list[ipaddress.IPv4Network] = []
+    for token in re.split(r"[,\s]+", raw):
+        if not token:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(token, strict=False))
+        except ValueError:
+            continue
+    return networks
+
+
 def local_lan_networks() -> list[ipaddress.IPv4Network]:
+    global AUTO_NETWORK_CACHE
     networks: list[ipaddress.IPv4Network] = []
 
-    if shutil.which("powershell.exe"):
+    if not AUTO_NETWORK_CACHE:
+        configured_networks = configured_auto_networks()
+        if configured_networks:
+            AUTO_NETWORK_CACHE = configured_networks
+            return list(AUTO_NETWORK_CACHE)
+
+    ps_command = powershell_command()
+    if ps_command:
         ps_script = (
             "Get-NetIPAddress -AddressFamily IPv4 | "
             "Where-Object { "
-            "$_.IPAddress -notmatch '^(127|169\\.254)\\.' -and "
-            "$_.PrefixLength -le 30 -and "
-            "$_.InterfaceAlias -notmatch '(vEthernet|WSL|Docker|Loopback|Hyper-V|Npcap)' "
+            "$_.IPAddress -notmatch '^(127|169\\.254)\\.' -and $_.PrefixLength -le 30 "
             "} | "
-            "ForEach-Object { \"$($_.IPAddress)/$($_.PrefixLength)\" }"
+            "ForEach-Object { "
+            "$adapter = Get-NetAdapter -InterfaceIndex $_.InterfaceIndex -ErrorAction SilentlyContinue; "
+            "[pscustomobject]@{ Address = \"$($_.IPAddress)/$($_.PrefixLength)\"; Alias = $_.InterfaceAlias; Description = $adapter.InterfaceDescription } "
+            "} | ConvertTo-Json -Depth 3"
         )
-        result = subprocess.run(
-            ["powershell.exe", "-NoProfile", "-Command", ps_script],
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=8,
-        )
-        for line in result.stdout.splitlines():
-            value = line.strip().replace("\r", "")
-            if not value:
+        rows: object = []
+        for attempt in range(3):
+            try:
+                result = subprocess.run(
+                    [ps_command, "-NoProfile", "-Command", ps_script],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    timeout=20,
+                )
+                rows = json.loads(result.stdout or "[]")
+            except (json.JSONDecodeError, subprocess.TimeoutExpired):
+                rows = []
+            if rows:
+                break
+            if attempt < 2:
+                time.sleep(0.5)
+        if isinstance(rows, dict):
+            rows = [rows]
+        for row in rows if isinstance(rows, list) else []:
+            if not isinstance(row, dict):
                 continue
             try:
-                networks.append(ipaddress.ip_interface(value).network)
+                interface = ipaddress.ip_interface(str(row.get("Address", "")).strip())
             except ValueError:
                 continue
+            network = usable_auto_network(
+                interface,
+                str(row.get("Alias", "") or ""),
+                str(row.get("Description", "") or ""),
+            )
+            if network:
+                networks.append(network)
 
-    if not networks and shutil.which("ip"):
+    if not networks and shutil.which("ip") and not is_wsl():
         result = subprocess.run(
             ["ip", "-o", "-4", "addr", "show", "scope", "global"],
             text=True,
@@ -102,11 +199,15 @@ def local_lan_networks() -> list[ipaddress.IPv4Network]:
             parts = line.split()
             if "inet" not in parts:
                 continue
+            interface_name = parts[1].split("@", 1)[0].rstrip(":") if len(parts) > 1 else ""
             value = parts[parts.index("inet") + 1]
             try:
-                networks.append(ipaddress.ip_interface(value).network)
+                interface = ipaddress.ip_interface(value)
             except ValueError:
                 continue
+            network = usable_auto_network(interface, interface_name)
+            if network:
+                networks.append(network)
 
     seen: set[str] = set()
     unique = []
@@ -116,7 +217,10 @@ def local_lan_networks() -> list[ipaddress.IPv4Network]:
             continue
         seen.add(key)
         unique.append(network)
-    return unique
+    if unique:
+        AUTO_NETWORK_CACHE = unique
+        return unique
+    return list(AUTO_NETWORK_CACHE)
 
 
 def resolve_endpoint_name(ip: str) -> tuple[str, str]:
@@ -390,7 +494,7 @@ class Handler(BaseHTTPRequestHandler):
             {str(ip) for network in networks for ip in network.hosts()},
             key=lambda value: tuple(int(part) for part in value.split(".")),
         )
-        if len(hosts) > 4096:
+        if len(hosts) > MAX_AUTO_SCAN_HOSTS:
             cidrs = ", ".join(str(network) for network in networks)
             self._json(400, {"error": f"Auto-detected scan is too large ({len(hosts)} IPs: {cidrs}). Enter a smaller CIDR like 192.168.10.0/24."})
             return
@@ -592,7 +696,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
+    global AUTO_NETWORK_CACHE
     port = int(os.environ.get("MISSION_CONTROL_PORT", "8787"))
+    AUTO_NETWORK_CACHE = local_lan_networks()
+    if AUTO_NETWORK_CACHE:
+        print(f"Mission Control auto LAN: {', '.join(str(network) for network in AUTO_NETWORK_CACHE)}", flush=True)
     try:
         server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     except OSError as exc:

@@ -37,6 +37,20 @@ finally:
 PY
 }
 
+detect_auto_cidrs() {
+  python3 - <<'PY'
+import importlib.util
+from pathlib import Path
+
+root = Path.cwd()
+spec = importlib.util.spec_from_file_location("mission_control", root / "scripts/06_mission_control_server.py")
+module = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(module)
+print(",".join(str(network) for network in module.local_lan_networks()))
+PY
+}
+
 stop_previous_runs() {
   local pids
   pids="$(pgrep -f '06_mission_control_server.py' || true)"
@@ -78,6 +92,14 @@ printf 'Starting BrothersInArms Mission Control\n'
 printf 'URL: %s\n\n' "$URL"
 
 stop_previous_runs
+
+if [[ -z "${MISSION_CONTROL_AUTO_CIDRS:-}" ]]; then
+  MISSION_CONTROL_AUTO_CIDRS="$(detect_auto_cidrs || true)"
+fi
+if [[ -n "$MISSION_CONTROL_AUTO_CIDRS" ]]; then
+  export MISSION_CONTROL_AUTO_CIDRS
+  printf 'Auto LAN CIDR: %s\n' "$MISSION_CONTROL_AUTO_CIDRS"
+fi
 
 (
   sleep 1
